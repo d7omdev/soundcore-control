@@ -1,0 +1,10 @@
+/target/
+*.log
+*.swp
+.DS_Store
+.idea/
+.vscode/
+/app-preview.png
+/monitor-preview.png
+/upstream-openscq30/
+/.pi-subagents/

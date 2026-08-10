@@ -1,0 +1,38 @@
+[package]
+name = "liberty-control"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.85"
+description = "A native Linux controller for Soundcore Liberty 4 Pro earbuds"
+license = "GPL-3.0-or-later"
+repository = "https://github.com/d7omdev/liberty-control"
+homepage = "https://github.com/d7omdev/liberty-control"
+readme = "README.md"
+keywords = ["soundcore", "bluetooth", "earbuds", "linux", "audio"]
+categories = ["gui", "multimedia::audio"]
+publish = false
+
+[dependencies]
+anyhow = "1"
+bluer = { version = "0.17.4", features = ["bluetoothd"] }
+dirs = "6"
+eframe = { version = "0.33.3", default-features = false, features = [
+  "default_fonts",
+  "glow",
+  "wayland",
+  "x11",
+] }
+image = { version = "0.25", default-features = false, features = ["png"] }
+ksni = "0.3.5"
+macaddr = "1"
+openscq30-lib = { git = "https://github.com/Oppzippy/OpenSCQ30.git", rev = "08b28dd8ce8c9f91c3ef44ad25c9d5f3491a2aa0" }
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "sync"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+[dev-dependencies]
+pretty_assertions = "1"
+
+[profile.release]
+lto = "thin"
+strip = true
