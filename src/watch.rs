@@ -1,7 +1,7 @@
 use std::{ffi::OsString, path::Path, process::Command, time::Duration};
 
 use anyhow::{Context, Result, anyhow};
-use bluer::{Address, Adapter, Device, DeviceEvent, DeviceProperty, Session};
+use bluer::{Adapter, Address, Device, DeviceEvent, DeviceProperty, Session};
 use futures::{StreamExt, pin_mut};
 
 use crate::device::{DEVICE_NAME, configured_mac_address};
@@ -33,7 +33,10 @@ async fn watch_once() -> Result<()> {
     let device = adapter.device(target)?;
 
     let mut was_connected = device.is_connected().await.unwrap_or(false);
-    tracing::info!(connected = was_connected, "watching Liberty 4 Pro connection state");
+    tracing::info!(
+        connected = was_connected,
+        "watching Liberty 4 Pro connection state"
+    );
 
     let events = device
         .events()
