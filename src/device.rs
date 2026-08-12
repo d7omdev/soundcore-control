@@ -16,7 +16,7 @@ use tokio::sync::mpsc as tokio_mpsc;
 
 use crate::domain::{DeviceCommand, DeviceSnapshot, setting_changes, snapshot_from_settings};
 
-const DEVICE_NAME: &str = "soundcore Liberty 4 Pro";
+pub(crate) const DEVICE_NAME: &str = "soundcore Liberty 4 Pro";
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum DeviceEvent {
@@ -286,7 +286,7 @@ fn database_path() -> Result<PathBuf> {
     Ok(directory.join("devices.sqlite3"))
 }
 
-fn configured_mac_address() -> Result<Option<MacAddr6>> {
+pub(crate) fn configured_mac_address() -> Result<Option<MacAddr6>> {
     std::env::var("LIBERTY_CONTROL_MAC")
         .ok()
         .map(|value| {

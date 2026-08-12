@@ -33,6 +33,11 @@ fn main() -> eframe::Result {
         return Ok(());
     }
 
+    if std::env::args().any(|argument| argument == "--watch") {
+        run_watch();
+        return Ok(());
+    }
+
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
             .with_title("Liberty Control")
@@ -62,7 +67,11 @@ fn run_tray_only() {
             match event {
                 DeviceEvent::Searching => tray.update(TrayState::searching()),
                 DeviceEvent::Connecting { .. } => tray.update(TrayState::connecting()),
-                DeviceEvent::Connected { snapshot, .. } | DeviceEvent::Snapshot(snapshot) => {
+                DeviceEvent::Connected { name, snapshot } => {
+                    tray.update(TrayState::connected(&snapshot));
+                    liberty_control::notify::buds_connected(&name, &snapshot);
+                }
+                DeviceEvent::Snapshot(snapshot) => {
                     tray.update(TrayState::connected(&snapshot));
                 }
                 DeviceEvent::Error(error) => {
@@ -101,6 +110,17 @@ fn run_tray_only() {
             tracing::error!(%error, "could not reopen Liberty Control");
         }
     }
+}
+
+fn run_watch() {
+    let runtime = match tokio::runtime::Runtime::new() {
+        Ok(runtime) => runtime,
+        Err(error) => {
+            tracing::error!(%error, "could not start Bluetooth watcher runtime");
+            return;
+        }
+    };
+    runtime.block_on(liberty_control::watch::run());
 }
 
 fn launch_tray_only() {
@@ -192,6 +212,7 @@ impl LibertyApp {
                     self.connection = ConnectionView::Connected;
                     self.device_name = "Liberty 4 Pro".into();
                     self.tray.update(TrayState::connected(&snapshot));
+                    liberty_control::notify::buds_connected(&name, &snapshot);
                     self.snapshot = snapshot;
                     self.message = None;
                 }

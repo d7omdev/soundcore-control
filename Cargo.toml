@@ -16,6 +16,7 @@ publish = false
 anyhow = "1"
 bluer = { version = "0.17.4", features = ["bluetoothd"] }
 dirs = "6"
+futures = "0.3"
 eframe = { version = "0.33.3", default-features = false, features = [
   "default_fonts",
   "glow",
@@ -25,6 +26,7 @@ eframe = { version = "0.33.3", default-features = false, features = [
 image = { version = "0.25", default-features = false, features = ["png"] }
 ksni = "0.3.5"
 macaddr = "1"
+notify-rust = "4"
 openscq30-lib = { git = "https://github.com/Oppzippy/OpenSCQ30.git", rev = "08b28dd8ce8c9f91c3ef44ad25c9d5f3491a2aa0" }
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "sync"] }
 tracing = "0.1"

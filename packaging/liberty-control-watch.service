@@ -1,0 +1,13 @@
+[Unit]
+Description=Liberty Control Bluetooth connection watcher
+After=bluetooth.target dbus.socket
+Requires=dbus.socket
+
+[Service]
+Type=simple
+ExecStart=@EXEC@ --watch
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target
