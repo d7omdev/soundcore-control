@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Soundcore Control
+Comment=Control Soundcore earbuds and headphones
+Exec=@EXEC@
+TryExec=@EXEC@
+Icon=soundcore-control
+Terminal=false
+Categories=AudioVideo;Audio;
+Keywords=Soundcore;Bluetooth;Earbuds;Headphones;ANC;Equalizer;
+StartupNotify=true

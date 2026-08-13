@@ -15,7 +15,7 @@ pub enum TrayAction {
 
 /// Shown in the tray title/tooltip/menu when no specific device is known yet
 /// (searching, disconnected, failed).
-const APP_NAME: &str = "Liberty Control";
+const APP_NAME: &str = "Soundcore Control";
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct TrayState {
@@ -112,7 +112,7 @@ impl TrayController {
         let (action_sender, action_receiver) = mpsc::channel();
 
         if let Err(error) = thread::Builder::new()
-            .name("liberty-tray".into())
+            .name("soundcore-tray".into())
             .spawn(move || run_tray(state_receiver, action_sender, egui_context))
         {
             tracing::error!(%error, "could not start tray thread");
@@ -147,7 +147,7 @@ fn run_tray(
     };
 
     runtime.block_on(async move {
-        let tray = LibertyTray {
+        let tray = SoundcoreTray {
             state: TrayState::default(),
             actions,
             egui_context,
@@ -163,7 +163,7 @@ fn run_tray(
 
         while let Some(state) = states.recv().await {
             if handle
-                .update(move |tray: &mut LibertyTray| tray.state = state)
+                .update(move |tray: &mut SoundcoreTray| tray.state = state)
                 .await
                 .is_none()
             {
@@ -173,14 +173,14 @@ fn run_tray(
     });
 }
 
-struct LibertyTray {
+struct SoundcoreTray {
     state: TrayState,
     actions: mpsc::Sender<TrayAction>,
     egui_context: Option<eframe::egui::Context>,
     icons: Vec<ksni::Icon>,
 }
 
-impl LibertyTray {
+impl SoundcoreTray {
     fn send_action(&self, action: TrayAction) {
         let _ = self.actions.send(action);
         if let Some(context) = &self.egui_context {
@@ -189,11 +189,11 @@ impl LibertyTray {
     }
 }
 
-impl ksni::Tray for LibertyTray {
+impl ksni::Tray for SoundcoreTray {
     const MENU_ON_ACTIVATE: bool = true;
 
     fn id(&self) -> String {
-        "liberty-control".into()
+        "soundcore-control".into()
     }
 
     fn category(&self) -> ksni::Category {
@@ -213,7 +213,7 @@ impl ksni::Tray for LibertyTray {
     }
 
     fn icon_name(&self) -> String {
-        "liberty-control".into()
+        "soundcore-control".into()
     }
 
     fn icon_pixmap(&self) -> Vec<ksni::Icon> {
@@ -241,8 +241,8 @@ impl ksni::Tray for LibertyTray {
         let selected_mode = self.state.listening_mode;
         vec![
             StandardItem {
-                label: "Open Liberty Control".into(),
-                activate: Box::new(|tray: &mut LibertyTray| {
+                label: "Open Soundcore Control".into(),
+                activate: Box::new(|tray: &mut SoundcoreTray| {
                     tray.send_action(TrayAction::ShowWindow);
                 }),
                 ..Default::default()
@@ -274,7 +274,7 @@ impl ksni::Tray for LibertyTray {
                             Some(ListeningMode::Normal) => 1,
                             Some(ListeningMode::NoiseCanceling) => 2,
                         },
-                        select: Box::new(|tray: &mut LibertyTray, selected| {
+                        select: Box::new(|tray: &mut SoundcoreTray, selected| {
                             let mode = match selected {
                                 0 => ListeningMode::Transparency,
                                 1 => ListeningMode::Normal,
@@ -299,7 +299,7 @@ impl ksni::Tray for LibertyTray {
             StandardItem {
                 label: "Disconnect".into(),
                 enabled: self.state.connected,
-                activate: Box::new(|tray: &mut LibertyTray| {
+                activate: Box::new(|tray: &mut SoundcoreTray| {
                     tray.send_action(TrayAction::Disconnect);
                 }),
                 ..Default::default()
@@ -307,8 +307,8 @@ impl ksni::Tray for LibertyTray {
             .into(),
             MenuItem::Separator,
             StandardItem {
-                label: "Quit Liberty Control".into(),
-                activate: Box::new(|tray: &mut LibertyTray| {
+                label: "Quit Soundcore Control".into(),
+                activate: Box::new(|tray: &mut SoundcoreTray| {
                     tray.send_action(TrayAction::Quit);
                 }),
                 ..Default::default()
@@ -326,7 +326,7 @@ fn listening_mode_label(mode: ListeningMode) -> &'static str {
     }
 }
 
-fn info_item(label: String) -> ksni::MenuItem<LibertyTray> {
+fn info_item(label: String) -> ksni::MenuItem<SoundcoreTray> {
     StandardItem {
         label,
         enabled: false,

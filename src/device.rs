@@ -50,7 +50,7 @@ impl DeviceWorker {
 
         let thread_events = event_sender.clone();
         if let Err(error) = thread::Builder::new()
-            .name("liberty-device-worker".into())
+            .name("soundcore-device-worker".into())
             .spawn(move || {
                 let runtime = match tokio::runtime::Runtime::new() {
                     Ok(runtime) => runtime,
@@ -324,21 +324,42 @@ fn read_snapshot(device: &dyn OpenSCQ30Device) -> DeviceSnapshot {
 }
 
 fn database_path() -> Result<PathBuf> {
-    let directory = dirs::data_local_dir()
-        .ok_or_else(|| anyhow!("could not locate the local data directory"))?
-        .join("liberty-control");
+    let data_dir = dirs::data_local_dir()
+        .ok_or_else(|| anyhow!("could not locate the local data directory"))?;
+    let directory = data_dir.join("soundcore-control");
+    migrate_legacy_data_dir(&data_dir.join("liberty-control"), &directory);
     std::fs::create_dir_all(&directory)
         .with_context(|| format!("could not create {}", directory.display()))?;
     Ok(directory.join("devices.sqlite3"))
 }
 
+/// One-time migration for installs from before the app was renamed from Liberty Control to
+/// Soundcore Control, so existing paired-device data isn't silently orphaned.
+fn migrate_legacy_data_dir(legacy_dir: &std::path::Path, new_dir: &std::path::Path) {
+    if new_dir.exists() || !legacy_dir.exists() {
+        return;
+    }
+    match std::fs::rename(legacy_dir, new_dir) {
+        Ok(()) => tracing::info!(
+            from = %legacy_dir.display(),
+            to = %new_dir.display(),
+            "migrated data directory from the old Liberty Control install"
+        ),
+        Err(error) => tracing::warn!(
+            %error,
+            from = %legacy_dir.display(),
+            "could not migrate old Liberty Control data directory"
+        ),
+    }
+}
+
 pub(crate) fn configured_mac_address() -> Result<Option<MacAddr6>> {
-    std::env::var("LIBERTY_CONTROL_MAC")
+    std::env::var("SOUNDCORE_CONTROL_MAC")
         .ok()
         .map(|value| {
             value
                 .parse()
-                .with_context(|| format!("invalid LIBERTY_CONTROL_MAC value: {value}"))
+                .with_context(|| format!("invalid SOUNDCORE_CONTROL_MAC value: {value}"))
         })
         .transpose()
 }

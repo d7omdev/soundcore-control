@@ -1,10 +1,10 @@
 use std::{borrow::Cow, collections::HashMap};
 
-use liberty_control::domain::{
-    DeviceCommand, ListeningMode, listening_mode_value, setting_changes, snapshot_from_settings,
-};
 use openscq30_lib::settings::{Equalizer, Range, Select, Setting, SettingId, Value};
 use pretty_assertions::assert_eq;
+use soundcore_control::domain::{
+    DeviceCommand, ListeningMode, listening_mode_value, setting_changes, snapshot_from_settings,
+};
 
 fn battery_value(current: u8, maximum: u8) -> Setting {
     Setting::Information {

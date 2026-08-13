@@ -1885,28 +1885,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "liberty-control"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "bluer",
- "dirs",
- "eframe",
- "futures",
- "i18n-embed",
- "image",
- "ksni",
- "macaddr",
- "notify-rust",
- "openscq30-i18n",
- "openscq30-lib",
- "pretty_assertions",
- "tokio",
- "tracing",
- "tracing-subscriber",
-]
-
-[[package]]
 name = "libloading"
 version = "0.8.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3401,6 +3379,28 @@ checksum = "c3d1e2c7f27f8d4cb10542a02c49005dbd6e93095799d6f3be745fae9f8fedd4"
 dependencies = [
  "libc",
  "windows-sys 0.61.2",
+]
+
+[[package]]
+name = "soundcore-control"
+version = "0.2.0"
+dependencies = [
+ "anyhow",
+ "bluer",
+ "dirs",
+ "eframe",
+ "futures",
+ "i18n-embed",
+ "image",
+ "ksni",
+ "macaddr",
+ "notify-rust",
+ "openscq30-i18n",
+ "openscq30-lib",
+ "pretty_assertions",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]

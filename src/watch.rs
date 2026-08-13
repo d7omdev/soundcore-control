@@ -89,15 +89,15 @@ async fn matches_target_name(device: &Device) -> bool {
 
 fn launch_app() {
     if app_already_running() {
-        tracing::debug!("Liberty Control is already running; not spawning another instance");
+        tracing::debug!("Soundcore Control is already running; not spawning another instance");
         return;
     }
     let Ok(executable) = std::env::current_exe() else {
-        tracing::error!("could not determine the Liberty Control executable path");
+        tracing::error!("could not determine the Soundcore Control executable path");
         return;
     };
     if let Err(error) = Command::new(executable).arg("--tray-only").spawn() {
-        tracing::error!(%error, "could not launch Liberty Control");
+        tracing::error!(%error, "could not launch Soundcore Control");
     }
 }
 

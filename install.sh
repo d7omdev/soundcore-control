@@ -1,10 +1,25 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-binary_path="$HOME/.local/bin/liberty-control"
-desktop_path="$HOME/.local/share/applications/liberty-control.desktop"
-icon_path="$HOME/.local/share/icons/hicolor/512x512/apps/liberty-control.png"
-watch_service_path="$HOME/.config/systemd/user/liberty-control-watch.service"
+binary_path="$HOME/.local/bin/soundcore-control"
+desktop_path="$HOME/.local/share/applications/soundcore-control.desktop"
+icon_path="$HOME/.local/share/icons/hicolor/512x512/apps/soundcore-control.png"
+watch_service_path="$HOME/.config/systemd/user/soundcore-control-watch.service"
+
+# Pre-rename (Liberty Control) install paths, removed on upgrade so users don't end up
+# with two tray icons/binaries after pulling the renamed app.
+legacy_binary_path="$HOME/.local/bin/liberty-control"
+legacy_desktop_path="$HOME/.local/share/applications/liberty-control.desktop"
+legacy_icon_path="$HOME/.local/share/icons/hicolor/512x512/apps/liberty-control.png"
+legacy_watch_service_path="$HOME/.config/systemd/user/liberty-control-watch.service"
+
+remove_legacy_install() {
+	if command -v systemctl >/dev/null 2>&1 && [ -f "$legacy_watch_service_path" ]; then
+		systemctl --user disable --now liberty-control-watch.service >/dev/null 2>&1 || true
+	fi
+	pkill -f "^$legacy_binary_path( --tray-only)?\$" >/dev/null 2>&1 || true
+	rm -f "$legacy_watch_service_path" "$legacy_binary_path" "$legacy_desktop_path" "$legacy_icon_path"
+}
 
 refresh_caches() {
 	if command -v gtk-update-icon-cache >/dev/null 2>&1; then
@@ -18,30 +33,32 @@ refresh_caches() {
 install_app() {
 	cargo build --release
 
-	install -Dm755 target/release/liberty-control "$binary_path"
+	remove_legacy_install
+
+	install -Dm755 target/release/soundcore-control "$binary_path"
 	install -Dm644 assets/launcher-logo.png "$icon_path"
-	sed "s|@EXEC@|$binary_path|g" packaging/liberty-control.desktop >"$desktop_path"
+	sed "s|@EXEC@|$binary_path|g" packaging/soundcore-control.desktop >"$desktop_path"
 	chmod 644 "$desktop_path"
-	rm -f "$HOME/.local/share/icons/hicolor/scalable/apps/liberty-control.svg"
+	rm -f "$HOME/.local/share/icons/hicolor/scalable/apps/soundcore-control.svg"
 
 	refresh_caches
 
 	if command -v systemctl >/dev/null 2>&1; then
-		sed "s|@EXEC@|$binary_path|g" packaging/liberty-control-watch.service >"$watch_service_path"
+		sed "s|@EXEC@|$binary_path|g" packaging/soundcore-control-watch.service >"$watch_service_path"
 		chmod 644 "$watch_service_path"
 		systemctl --user daemon-reload
-		systemctl --user enable --now liberty-control-watch.service
-		printf 'Installed Liberty Control and enabled the Bluetooth connection watcher (systemd --user).\n'
-		printf 'Liberty Control will open in the tray automatically when the Liberty 4 Pro connects.\n'
+		systemctl --user enable --now soundcore-control-watch.service
+		printf 'Installed Soundcore Control and enabled the Bluetooth connection watcher (systemd --user).\n'
+		printf 'Soundcore Control will open in the tray automatically when a supported device connects.\n'
 	else
-		printf 'Installed Liberty Control. Open it from your app launcher or run: liberty-control\n'
+		printf 'Installed Soundcore Control. Open it from your app launcher or run: soundcore-control\n'
 		printf 'systemctl not found: skipped installing the auto-open-on-connect watcher.\n'
 	fi
 }
 
 uninstall_app() {
 	if command -v systemctl >/dev/null 2>&1 && [ -f "$watch_service_path" ]; then
-		systemctl --user disable --now liberty-control-watch.service >/dev/null 2>&1 || true
+		systemctl --user disable --now soundcore-control-watch.service >/dev/null 2>&1 || true
 		systemctl --user daemon-reload
 	fi
 
@@ -51,7 +68,7 @@ uninstall_app() {
 
 	refresh_caches
 
-	printf 'Uninstalled Liberty Control and removed the Bluetooth connection watcher.\n'
+	printf 'Uninstalled Soundcore Control and removed the Bluetooth connection watcher.\n'
 }
 
 case "${1:-install}" in

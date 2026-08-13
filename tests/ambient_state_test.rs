@@ -1,7 +1,7 @@
 use std::{borrow::Cow, collections::HashMap};
 
-use liberty_control::domain::{ListeningMode, snapshot_from_settings};
 use openscq30_lib::settings::{Range, Select, Setting, SettingId};
+use soundcore_control::domain::{ListeningMode, snapshot_from_settings};
 
 #[test]
 fn keeps_hardware_level_available_when_starting_in_normal_mode() {

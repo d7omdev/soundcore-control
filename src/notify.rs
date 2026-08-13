@@ -10,10 +10,10 @@ pub fn buds_connected(name: &str, snapshot: &DeviceSnapshot) {
         battery(snapshot.battery_case),
     );
     if let Err(error) = Notification::new()
-        .appname("Liberty Control")
+        .appname("Soundcore Control")
         .summary(&format!("{name} connected"))
         .body(&body)
-        .icon("liberty-control")
+        .icon("soundcore-control")
         .timeout(Timeout::Milliseconds(6000))
         .show()
     {

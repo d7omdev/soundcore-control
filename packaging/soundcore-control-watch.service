@@ -1,5 +1,5 @@
 [Unit]
-Description=Liberty Control Bluetooth connection watcher
+Description=Soundcore Control Bluetooth connection watcher
 After=bluetooth.target dbus.socket
 Requires=dbus.socket
 

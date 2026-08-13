@@ -3,7 +3,7 @@ use std::{collections::HashMap, process::Command, thread, time::Duration};
 use eframe::egui::{
     self, Align, Color32, CornerRadius, FontId, Layout, Margin, RichText, Stroke, Vec2,
 };
-use liberty_control::{
+use soundcore_control::{
     device::{DeviceEvent, DeviceWorker},
     domain::{
         ControlSetting, ControlValue, DeviceCommand, DeviceSnapshot, ListeningMode,
@@ -27,7 +27,7 @@ fn main() -> eframe::Result {
     tracing_subscriber::fmt()
         .with_env_filter(
             tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "liberty_control=info".into()),
+                .unwrap_or_else(|_| "soundcore_control=info".into()),
         )
         .init();
 
@@ -49,16 +49,16 @@ fn main() -> eframe::Result {
 
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
-            .with_title("Liberty Control")
+            .with_title("Soundcore Control")
             .with_inner_size([920.0, 720.0])
             .with_min_inner_size([420.0, 560.0]),
         ..Default::default()
     };
 
     eframe::run_native(
-        "Liberty Control",
+        "Soundcore Control",
         options,
-        Box::new(|context| Ok(Box::new(LibertyApp::new(context)))),
+        Box::new(|context| Ok(Box::new(SoundcoreApp::new(context)))),
     )
 }
 
@@ -66,7 +66,7 @@ fn run_tray_only() {
     let tray = TrayController::spawn_background();
     tray.update(TrayState::searching());
     // Register the replacement tray item before reconnecting, so closing the UI
-    // never leaves the desktop without a Liberty Control tray icon.
+    // never leaves the desktop without a Soundcore Control tray icon.
     thread::sleep(Duration::from_millis(500));
     let worker = DeviceWorker::spawn();
     let mut open_window = false;
@@ -88,7 +88,7 @@ fn run_tray_only() {
                 } => {
                     device_name = name;
                     tray.update(TrayState::connected(&device_name, &snapshot));
-                    liberty_control::notify::buds_connected(&device_name, &snapshot);
+                    soundcore_control::notify::buds_connected(&device_name, &snapshot);
                 }
                 DeviceEvent::Snapshot(snapshot) => {
                     tray.update(TrayState::connected(&device_name, &snapshot));
@@ -126,7 +126,7 @@ fn run_tray_only() {
         if let Ok(executable) = std::env::current_exe()
             && let Err(error) = Command::new(executable).spawn()
         {
-            tracing::error!(%error, "could not reopen Liberty Control");
+            tracing::error!(%error, "could not reopen Soundcore Control");
         }
     }
 }
@@ -139,7 +139,7 @@ fn run_watch() {
             return;
         }
     };
-    runtime.block_on(liberty_control::watch::run());
+    runtime.block_on(soundcore_control::watch::run());
 }
 
 fn launch_tray_only() {
@@ -147,7 +147,7 @@ fn launch_tray_only() {
         return;
     };
     if let Err(error) = Command::new(executable).arg("--tray-only").spawn() {
-        tracing::error!(%error, "could not keep Liberty Control in the tray");
+        tracing::error!(%error, "could not keep Soundcore Control in the tray");
     }
 }
 
@@ -169,7 +169,7 @@ enum ConnectionView {
     Failed,
 }
 
-struct LibertyApp {
+struct SoundcoreApp {
     worker: DeviceWorker,
     tray: TrayController,
     connection: ConnectionView,
@@ -184,7 +184,7 @@ struct LibertyApp {
     allow_exit: bool,
 }
 
-impl LibertyApp {
+impl SoundcoreApp {
     fn new(context: &eframe::CreationContext<'_>) -> Self {
         configure_style(&context.egui_ctx);
         let tray = TrayController::spawn_for_ui(context.egui_ctx.clone());
@@ -259,7 +259,7 @@ impl LibertyApp {
                     self.set_current_icon(context, icon);
                     self.tray
                         .update(TrayState::connected(&self.device_name, &snapshot));
-                    liberty_control::notify::buds_connected(&name, &snapshot);
+                    soundcore_control::notify::buds_connected(&name, &snapshot);
                     self.snapshot = snapshot;
                     self.message = None;
                 }
@@ -637,7 +637,7 @@ impl LibertyApp {
     }
 }
 
-impl eframe::App for LibertyApp {
+impl eframe::App for SoundcoreApp {
     fn update(&mut self, context: &egui::Context, _frame: &mut eframe::Frame) {
         self.poll_tray(context);
         self.poll_device(context);
@@ -1109,7 +1109,7 @@ fn draw_buds(ui: &mut egui::Ui, texture: Option<&egui::TextureHandle>) {
     }
 }
 
-fn preset_label(options: &[liberty_control::domain::SelectOption], value: &str) -> String {
+fn preset_label(options: &[soundcore_control::domain::SelectOption], value: &str) -> String {
     options
         .iter()
         .find(|option| option.value == value)
