@@ -1082,23 +1082,23 @@ fn draw_buds(ui: &mut egui::Ui, texture: Option<&egui::TextureHandle>) {
     if let Some(texture) = texture {
         ui.add(
             egui::Image::new(texture)
-                .fit_to_exact_size(Vec2::new(208.0, 120.0))
+                .fit_to_exact_size(Vec2::new(236.0, 136.0))
                 .maintain_aspect_ratio(true),
         );
         return;
     }
 
-    let (rect, _) = ui.allocate_exact_size(Vec2::new(136.0, 96.0), egui::Sense::hover());
+    let (rect, _) = ui.allocate_exact_size(Vec2::new(154.0, 108.0), egui::Sense::hover());
     let painter = ui.painter();
-    let left = rect.left_center() + Vec2::new(30.0, -7.0);
-    let right = rect.right_center() + Vec2::new(-30.0, -7.0);
+    let left = rect.left_center() + Vec2::new(34.0, -8.0);
+    let right = rect.right_center() + Vec2::new(-34.0, -8.0);
     for (center, direction) in [(left, -1.0), (right, 1.0)] {
-        painter.circle_filled(center, 17.0, CARD_ALT);
+        painter.circle_filled(center, 19.0, CARD_ALT);
         let stem = egui::Rect::from_center_size(
-            center + Vec2::new(direction * 7.0, 22.0),
-            Vec2::new(12.0, 34.0),
+            center + Vec2::new(direction * 8.0, 25.0),
+            Vec2::new(14.0, 38.0),
         );
-        painter.rect_filled(stem, CornerRadius::same(6), CARD_ALT);
+        painter.rect_filled(stem, CornerRadius::same(7), CARD_ALT);
     }
 }
 
