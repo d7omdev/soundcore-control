@@ -4,6 +4,8 @@ use std::{
     thread,
 };
 
+use crate::devices::{DEVICE_PROFILES, DeviceProfile, find_matching_descriptor};
+
 use anyhow::{Context, Result, anyhow};
 use macaddr::MacAddr6;
 use openscq30_lib::{
@@ -15,7 +17,6 @@ use openscq30_lib::{
 };
 use tokio::sync::mpsc as tokio_mpsc;
 
-use crate::devices::{DEVICE_PROFILES, DeviceProfile, find_matching_descriptor};
 use crate::domain::{DeviceCommand, DeviceSnapshot, setting_changes, snapshot_from_settings};
 
 #[derive(Clone, Debug, PartialEq)]
@@ -23,13 +24,13 @@ pub enum DeviceEvent {
     Searching,
     Connecting {
         name: String,
-        icon: Option<&'static [u8]>,
+        icon: Option<Arc<[u8]>>,
         supports_manual_ambient_ranges: bool,
     },
     Connected {
         name: String,
         snapshot: DeviceSnapshot,
-        icon: Option<&'static [u8]>,
+        icon: Option<Arc<[u8]>>,
         supports_manual_ambient_ranges: bool,
     },
     Snapshot(DeviceSnapshot),
@@ -128,7 +129,7 @@ async fn run_device(
     events
         .send(DeviceEvent::Connecting {
             name: profile.display_name.to_owned(),
-            icon: profile.icon,
+            icon: profile.icon.clone(),
             supports_manual_ambient_ranges: profile.supports_manual_ambient_ranges,
         })
         .ok();
@@ -152,7 +153,7 @@ async fn run_device(
         .send(DeviceEvent::Connected {
             name: profile.display_name.to_owned(),
             snapshot,
-            icon: profile.icon,
+            icon: profile.icon.clone(),
             supports_manual_ambient_ranges: profile.supports_manual_ambient_ranges,
         })
         .ok();
@@ -167,7 +168,7 @@ async fn find_target_device(
 ) -> Result<(ConnectionDescriptor, &'static DeviceProfile)> {
     let configured_mac = configured_mac_address()?;
 
-    for profile in DEVICE_PROFILES {
+    for profile in DEVICE_PROFILES.iter() {
         let descriptors = session
             .list_devices(profile.model)
             .await
@@ -182,7 +183,7 @@ async fn find_target_device(
     }
     let supported = DEVICE_PROFILES
         .iter()
-        .map(|profile| profile.display_name)
+        .map(|profile| profile.display_name.as_str())
         .collect::<Vec<_>>()
         .join(", ");
     Err(anyhow!(

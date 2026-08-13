@@ -30,7 +30,10 @@ macaddr = "1"
 notify-rust = "4"
 openscq30-i18n = { git = "https://github.com/Oppzippy/OpenSCQ30.git", rev = "08b28dd8ce8c9f91c3ef44ad25c9d5f3491a2aa0" }
 openscq30-lib = { git = "https://github.com/Oppzippy/OpenSCQ30.git", rev = "08b28dd8ce8c9f91c3ef44ad25c9d5f3491a2aa0" }
+rust-embed = "8"
+serde = { version = "1", features = ["derive"] }
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "sync"] }
+toml = "0.5"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 

@@ -3398,7 +3398,10 @@ dependencies = [
  "openscq30-i18n",
  "openscq30-lib",
  "pretty_assertions",
+ "rust-embed",
+ "serde",
  "tokio",
+ "toml",
  "tracing",
  "tracing-subscriber",
 ]

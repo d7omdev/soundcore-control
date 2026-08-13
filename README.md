@@ -22,7 +22,7 @@
 Soundcore Control brings the most useful Soundcore mobile-app controls to a responsive desktop interface. It talks directly to paired devices through BlueZ and [OpenSCQ30](https://github.com/Oppzippy/OpenSCQ30)'s Soundcore protocol implementation.
 
 > [!IMPORTANT]
-> Soundcore Control currently targets **Liberty 4 Pro** (verified), plus **R60i NC**, **P20i/P25i/R50i**, **Life Q30**, and **Space One Pro**. Support for the latter four is new and their Bluetooth device names are best-effort guesses — if your device isn't found, please open an issue with the exact name it advertises.
+> Soundcore Control currently targets **Liberty 4 Pro** (verified), plus **R60i NC**, **P20i/P25i/R50i**, **Life Q30**, and **Space One Pro**. Support for the latter four is new and their Bluetooth device names are best-effort guesses. If your device isn't found, please open an issue with the exact name it advertises.
 
 ## Features
 
@@ -142,11 +142,15 @@ cargo clippy --all-targets -- -D warnings
 
 The app is split into focused modules:
 
-- `src/device.rs` — BlueZ/OpenSCQ30 connection and command worker
-- `src/devices.rs` — the supported-device registry (Bluetooth name, model, icon, capabilities)
-- `src/domain.rs` — device-to-UI state mapping and command translation
-- `src/tray.rs` — Linux StatusNotifierItem integration
-- `src/main.rs` — responsive egui interface
+- `src/device.rs` - BlueZ/OpenSCQ30 connection and command worker
+- `src/devices.rs` - the supported-device registry, loaded from `assets/devices.toml`
+- `src/domain.rs` - device-to-UI state mapping and command translation
+- `src/tray.rs` - Linux StatusNotifierItem integration
+- `src/app.rs` - the `eframe::App` state machine (connection/tray event handling)
+- `src/ui/` - egui screen and widget code, split by feature (ambient, equalizer, controls, header, shared widgets, theme)
+- `src/main.rs` - CLI entry point and run-mode dispatch
+
+Adding a new device model means adding an entry to `assets/devices.toml` (and a PNG under `assets/icons/` if you have one), not editing Rust code.
 
 Runtime state is stored in `${XDG_DATA_HOME:-~/.local/share}/soundcore-control/devices.sqlite3`. Soundcore Control has no telemetry and does not require an internet connection at runtime.
 

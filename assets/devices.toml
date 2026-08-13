@@ -1,0 +1,47 @@
+# Every Soundcore model this app knows how to drive.
+#
+# `model` must match a variant name from openscq30-lib's `DeviceModel` enum exactly
+# (see https://github.com/Oppzippy/OpenSCQ30/blob/main/lib/src/devices/device_model.rs).
+# `bluetooth_name` is matched case-insensitively against the BlueZ-advertised device
+# name, and for every entry besides Liberty 4 Pro and R60i NC it is an unverified guess
+# following the "soundcore <Product>" convention; confirm on real hardware before
+# trusting it.
+# `icon` (optional) names a PNG file in assets/icons/; omit it to fall back to the
+# generic vector-drawn placeholder.
+# `supports_manual_ambient_ranges` must be `true` only for devices confirmed to expose
+# separate ManualNoiseCanceling/ManualTransparency numeric-range settings. Setting it to
+# true for a device that doesn't have them makes openscq30-lib panic on connect (see
+# device::initialize_ambient_level). Default to `false` for anything unverified.
+
+[[device]]
+model = "SoundcoreA3954"
+bluetooth_name = "soundcore Liberty 4 Pro"
+display_name = "Liberty 4 Pro"
+icon = "liberty4pro.png"
+supports_manual_ambient_ranges = true
+
+[[device]]
+model = "SoundcoreD1202C"
+bluetooth_name = "soundcore R60i NC"
+display_name = "R60i NC"
+icon = "r60inc.png"
+# Confirmed on hardware: this device has no manual ambient range settings.
+supports_manual_ambient_ranges = false
+
+[[device]]
+model = "SoundcoreA3949"
+bluetooth_name = "soundcore P20i"
+display_name = "P20i"
+supports_manual_ambient_ranges = false
+
+[[device]]
+model = "SoundcoreA3028"
+bluetooth_name = "soundcore Life Q30"
+display_name = "Life Q30"
+supports_manual_ambient_ranges = false
+
+[[device]]
+model = "SoundcoreA3062"
+bluetooth_name = "soundcore Space One Pro"
+display_name = "Space One Pro"
+supports_manual_ambient_ranges = false
