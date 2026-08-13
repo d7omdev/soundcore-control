@@ -24,11 +24,13 @@ pub enum DeviceEvent {
     Connecting {
         name: String,
         icon: Option<&'static [u8]>,
+        supports_manual_ambient_ranges: bool,
     },
     Connected {
         name: String,
         snapshot: DeviceSnapshot,
         icon: Option<&'static [u8]>,
+        supports_manual_ambient_ranges: bool,
     },
     Snapshot(DeviceSnapshot),
     Error(String),
@@ -59,8 +61,26 @@ impl DeviceWorker {
                         return;
                     }
                 };
-                if let Err(error) = runtime.block_on(run_device(command_receiver, &thread_events)) {
-                    let _ = thread_events.send(DeviceEvent::Error(format!("{error:#}")));
+                // `openscq30-lib` panics rather than returning an error for some
+                // unsupported per-model setting writes (see DeviceProfile's
+                // `supports_manual_ambient_ranges` doc comment). Catch that so an
+                // unexpected panic surfaces as a normal error instead of silently
+                // killing this thread and leaving the UI stuck.
+                let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                    runtime.block_on(run_device(command_receiver, &thread_events))
+                }));
+                match outcome {
+                    Ok(Ok(())) => {}
+                    Ok(Err(error)) => {
+                        let _ = thread_events.send(DeviceEvent::Error(format!("{error:#}")));
+                    }
+                    Err(panic) => {
+                        let message = panic_message(&panic);
+                        tracing::error!(message, "Bluetooth worker panicked");
+                        let _ = thread_events.send(DeviceEvent::Error(format!(
+                            "The Bluetooth worker crashed unexpectedly: {message}"
+                        )));
+                    }
                 }
             })
         {
@@ -86,6 +106,16 @@ impl DeviceWorker {
     }
 }
 
+fn panic_message(payload: &(dyn std::any::Any + Send)) -> String {
+    if let Some(message) = payload.downcast_ref::<&str>() {
+        (*message).to_owned()
+    } else if let Some(message) = payload.downcast_ref::<String>() {
+        message.clone()
+    } else {
+        "unknown panic".to_owned()
+    }
+}
+
 async fn run_device(
     mut commands: tokio_mpsc::UnboundedReceiver<DeviceCommand>,
     events: &mpsc::Sender<DeviceEvent>,
@@ -99,6 +129,7 @@ async fn run_device(
         .send(DeviceEvent::Connecting {
             name: profile.display_name.to_owned(),
             icon: profile.icon,
+            supports_manual_ambient_ranges: profile.supports_manual_ambient_ranges,
         })
         .ok();
 
@@ -115,13 +146,14 @@ async fn run_device(
         .connect(descriptor.mac_address)
         .await
         .context("could not open the Soundcore RFCOMM service")?;
-    initialize_ambient_level(device.as_ref(), events).await;
+    initialize_ambient_level(device.as_ref(), events, profile).await;
     let snapshot = read_snapshot(device.as_ref());
     events
         .send(DeviceEvent::Connected {
             name: profile.display_name.to_owned(),
             snapshot,
             icon: profile.icon,
+            supports_manual_ambient_ranges: profile.supports_manual_ambient_ranges,
         })
         .ok();
 
@@ -211,7 +243,11 @@ async fn event_loop(
 async fn initialize_ambient_level(
     device: &dyn OpenSCQ30Device,
     events: &mpsc::Sender<DeviceEvent>,
+    profile: &DeviceProfile,
 ) {
+    if !profile.supports_manual_ambient_ranges {
+        return;
+    }
     let mode = match device.setting(&SettingId::AmbientSoundMode) {
         Some(Setting::Select { value, .. }) => value,
         _ => return,

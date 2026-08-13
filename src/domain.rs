@@ -224,7 +224,7 @@ pub fn listening_mode_value(mode: ListeningMode) -> &'static str {
     }
 }
 
-fn parse_listening_mode(value: &str) -> ListeningMode {
+pub fn parse_listening_mode(value: &str) -> ListeningMode {
     match value {
         "NoiseCanceling" => ListeningMode::NoiseCanceling,
         "Transparency" => ListeningMode::Transparency,

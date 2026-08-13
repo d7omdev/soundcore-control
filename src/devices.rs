@@ -11,6 +11,14 @@ pub struct DeviceProfile {
     /// Embedded PNG bytes for the in-app illustration, or `None` to fall back to the
     /// generic vector-drawn placeholder.
     pub icon: Option<&'static [u8]>,
+    /// Whether this model exposes separate `ManualNoiseCanceling`/`ManualTransparency`
+    /// numeric-range settings (as the Liberty 4 Pro does), which is what the ambient-level
+    /// startup repair in `device::initialize_ambient_level` writes to. Devices without
+    /// these settings must not run that repair: `openscq30-lib`'s `set_setting_values`
+    /// panics (`unwrap()` on `None`) when asked to write a `SettingId` the device's
+    /// settings manager doesn't register, rather than returning an error. Defaults to
+    /// `false` (skip the repair) for any unverified model.
+    pub supports_manual_ambient_ranges: bool,
 }
 
 /// Every Soundcore model this app knows how to drive. `bluetooth_name` for every entry
@@ -22,30 +30,37 @@ pub const DEVICE_PROFILES: &[DeviceProfile] = &[
         bluetooth_name: "soundcore Liberty 4 Pro",
         display_name: "Liberty 4 Pro",
         icon: Some(include_bytes!("../assets/liberty4pro.png")),
+        supports_manual_ambient_ranges: true,
     },
     DeviceProfile {
         model: DeviceModel::SoundcoreD1202C,
         bluetooth_name: "soundcore R60i NC",
         display_name: "R60i NC",
         icon: Some(include_bytes!("../assets/r60inc.png")),
+        // Confirmed on hardware: writing ManualNoiseCanceling/ManualTransparency here
+        // panics inside openscq30-lib, so the startup ambient-level repair must be skipped.
+        supports_manual_ambient_ranges: false,
     },
     DeviceProfile {
         model: DeviceModel::SoundcoreA3949,
         bluetooth_name: "soundcore P20i",
         display_name: "P20i",
         icon: None,
+        supports_manual_ambient_ranges: false,
     },
     DeviceProfile {
         model: DeviceModel::SoundcoreA3028,
         bluetooth_name: "soundcore Life Q30",
         display_name: "Life Q30",
         icon: None,
+        supports_manual_ambient_ranges: false,
     },
     DeviceProfile {
         model: DeviceModel::SoundcoreA3062,
         bluetooth_name: "soundcore Space One Pro",
         display_name: "Space One Pro",
         icon: None,
+        supports_manual_ambient_ranges: false,
     },
 ];
 

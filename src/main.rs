@@ -5,7 +5,10 @@ use eframe::egui::{
 };
 use liberty_control::{
     device::{DeviceEvent, DeviceWorker},
-    domain::{ControlSetting, ControlValue, DeviceCommand, DeviceSnapshot, ListeningMode},
+    domain::{
+        ControlSetting, ControlValue, DeviceCommand, DeviceSnapshot, ListeningMode,
+        parse_listening_mode,
+    },
     tray::{TrayAction, TrayController, TrayState},
 };
 
@@ -71,6 +74,7 @@ fn run_tray_only() {
                     name,
                     snapshot,
                     icon: _,
+                    supports_manual_ambient_ranges: _,
                 } => {
                     tray.update(TrayState::connected(&snapshot));
                     liberty_control::notify::buds_connected(&name, &snapshot);
@@ -162,6 +166,7 @@ struct LibertyApp {
     snapshot: DeviceSnapshot,
     message: Option<String>,
     active_tab: ActiveTab,
+    supports_manual_ambient_ranges: bool,
     current_icon: Option<&'static [u8]>,
     icon_textures: HashMap<usize, egui::TextureHandle>,
     soundcore_texture: Option<egui::TextureHandle>,
@@ -181,6 +186,7 @@ impl LibertyApp {
             snapshot: DeviceSnapshot::default(),
             message: None,
             active_tab: ActiveTab::Ambient,
+            supports_manual_ambient_ranges: true,
             current_icon: None,
             icon_textures: HashMap::new(),
             soundcore_texture: load_soundcore_texture(
@@ -213,9 +219,14 @@ impl LibertyApp {
                     self.connection = ConnectionView::Searching;
                     self.tray.update(TrayState::searching());
                 }
-                DeviceEvent::Connecting { name, icon } => {
+                DeviceEvent::Connecting {
+                    name,
+                    icon,
+                    supports_manual_ambient_ranges,
+                } => {
                     self.connection = ConnectionView::Connecting;
                     self.device_name = name;
+                    self.supports_manual_ambient_ranges = supports_manual_ambient_ranges;
                     self.set_current_icon(context, icon);
                     self.tray.update(TrayState::connecting());
                 }
@@ -223,6 +234,7 @@ impl LibertyApp {
                     name,
                     snapshot,
                     icon,
+                    supports_manual_ambient_ranges,
                 } => {
                     tracing::info!(
                         device = %name,
@@ -232,6 +244,7 @@ impl LibertyApp {
                     );
                     self.connection = ConnectionView::Connected;
                     self.device_name = name.clone();
+                    self.supports_manual_ambient_ranges = supports_manual_ambient_ranges;
                     self.set_current_icon(context, icon);
                     self.tray.update(TrayState::connected(&snapshot));
                     liberty_control::notify::buds_connected(&name, &snapshot);
@@ -367,60 +380,100 @@ impl LibertyApp {
 
     fn sound_mode_card(&mut self, ui: &mut egui::Ui) {
         card(ui, |ui| {
-            section_title(
-                ui,
-                "Ambient Sound",
-                "Slide from transparency to noise canceling",
-            );
-            ui.add_space(18.0);
-            match ambient_slider(
-                ui,
-                self.snapshot.ambient_level,
-                self.snapshot.listening_mode,
-                self.is_connected(),
-            ) {
-                Some(AmbientSelection::Level(level)) => {
-                    self.snapshot.ambient_level = Some(level);
-                    self.snapshot.listening_mode = if level <= 5 {
-                        ListeningMode::Transparency
-                    } else {
-                        ListeningMode::NoiseCanceling
-                    };
-                    self.send(DeviceCommand::SetAmbientLevel(level));
-                }
-                Some(AmbientSelection::Normal) => {
-                    self.snapshot.listening_mode = ListeningMode::Normal;
-                    self.snapshot.ambient_level = None;
-                    self.send(DeviceCommand::SetListeningMode(ListeningMode::Normal));
-                }
-                None => {}
+            if self.supports_manual_ambient_ranges {
+                self.ambient_slider_section(ui);
+            } else {
+                self.ambient_mode_picker_section(ui);
             }
-            ui.add_space(8.0);
-            let (labels, _) =
-                ui.allocate_exact_size(Vec2::new(ui.available_width(), 18.0), egui::Sense::hover());
-            let font = FontId::proportional(12.0);
-            ui.painter().text(
-                labels.left_center(),
-                egui::Align2::LEFT_CENTER,
-                "Transparency",
-                font.clone(),
-                MUTED,
-            );
-            ui.painter().text(
-                labels.center(),
-                egui::Align2::CENTER_CENTER,
-                "Normal",
-                font.clone(),
-                MUTED,
-            );
-            ui.painter().text(
-                labels.right_center(),
-                egui::Align2::RIGHT_CENTER,
-                "Noise Canceling",
-                font,
-                MUTED,
-            );
         });
+    }
+
+    /// Continuous 1-10 ambient slider, for devices that expose manual noise-canceling and
+    /// transparency ranges (see `DeviceProfile::supports_manual_ambient_ranges`).
+    fn ambient_slider_section(&mut self, ui: &mut egui::Ui) {
+        section_title(
+            ui,
+            "Ambient Sound",
+            "Slide from transparency to noise canceling",
+        );
+        ui.add_space(18.0);
+        match ambient_slider(
+            ui,
+            self.snapshot.ambient_level,
+            self.snapshot.listening_mode,
+            self.is_connected(),
+        ) {
+            Some(AmbientSelection::Level(level)) => {
+                self.snapshot.ambient_level = Some(level);
+                self.snapshot.listening_mode = if level <= 5 {
+                    ListeningMode::Transparency
+                } else {
+                    ListeningMode::NoiseCanceling
+                };
+                self.send(DeviceCommand::SetAmbientLevel(level));
+            }
+            Some(AmbientSelection::Normal) => {
+                self.snapshot.listening_mode = ListeningMode::Normal;
+                self.snapshot.ambient_level = None;
+                self.send(DeviceCommand::SetListeningMode(ListeningMode::Normal));
+            }
+            None => {}
+        }
+        ui.add_space(8.0);
+        let (labels, _) =
+            ui.allocate_exact_size(Vec2::new(ui.available_width(), 18.0), egui::Sense::hover());
+        let font = FontId::proportional(12.0);
+        ui.painter().text(
+            labels.left_center(),
+            egui::Align2::LEFT_CENTER,
+            "Transparency",
+            font.clone(),
+            MUTED,
+        );
+        ui.painter().text(
+            labels.center(),
+            egui::Align2::CENTER_CENTER,
+            "Normal",
+            font.clone(),
+            MUTED,
+        );
+        ui.painter().text(
+            labels.right_center(),
+            egui::Align2::RIGHT_CENTER,
+            "Noise Canceling",
+            font,
+            MUTED,
+        );
+    }
+
+    /// Mode-only picker for devices with discrete ambient modes but no manual intensity
+    /// slider (e.g. the R60i NC only exposes Normal/Transparency/Noise Canceling as fixed
+    /// modes, not a continuous 1-10 range).
+    fn ambient_mode_picker_section(&mut self, ui: &mut egui::Ui) {
+        section_title(ui, "Ambient Sound", "Choose a listening mode");
+        ui.add_space(18.0);
+        let connected = self.is_connected();
+        let options = self.snapshot.mode_options.clone();
+        let current = self.snapshot.listening_mode;
+        let mut selected = None;
+        ui.columns(options.len().max(1), |columns| {
+            for (column, option) in columns.iter_mut().zip(&options) {
+                let mode = parse_listening_mode(&option.value);
+                if column
+                    .add_enabled(
+                        connected,
+                        egui::Button::new(&option.label).selected(mode == current),
+                    )
+                    .clicked()
+                {
+                    selected = Some(mode);
+                }
+            }
+        });
+        if let Some(mode) = selected {
+            self.snapshot.listening_mode = mode;
+            self.send(DeviceCommand::SetListeningMode(mode));
+        }
     }
 
     fn equalizer_card(&mut self, ui: &mut egui::Ui) {
