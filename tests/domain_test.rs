@@ -190,7 +190,7 @@ fn extracts_daily_and_earbud_controls() {
     assert_eq!(snapshot.daily_controls.len(), 2);
     assert_eq!(snapshot.daily_controls[0].label, "Easy Chat");
     assert_eq!(snapshot.earbud_controls.len(), 1);
-    assert_eq!(snapshot.earbud_controls[0].label, "Left · Single press");
+    assert_eq!(snapshot.earbud_controls[0].label, "Left Single Press");
 }
 
 #[test]

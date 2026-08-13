@@ -31,6 +31,12 @@ fn main() -> eframe::Result {
         )
         .init();
 
+    // Selects the system locale for openscq30-lib's translated setting labels (falls back
+    // to English for unsupported locales). Must run before any device connection, since
+    // that's what populates the labels in DeviceSnapshot::daily_controls/earbud_controls.
+    let requested_languages = i18n_embed::DesktopLanguageRequester::requested_languages();
+    openscq30_lib::i18n::init(&requested_languages);
+
     if std::env::args().any(|argument| argument == "--tray-only") {
         run_tray_only();
         return Ok(());

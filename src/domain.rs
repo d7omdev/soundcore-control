@@ -1,5 +1,6 @@
 use std::borrow::Cow;
 
+use openscq30_i18n::Translate;
 use openscq30_lib::settings::{Setting, SettingId, Value};
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -130,44 +131,43 @@ fn ambient_level_changes(level: u8) -> Vec<(SettingId, Value)> {
     }
 }
 
-const DAILY_CONTROLS: &[(SettingId, &str)] = &[
-    (SettingId::WindNoiseSuppression, "Wind Noise Reduction"),
-    (SettingId::WearingDetection, "Wearing Detection"),
-    (SettingId::EasyChat, "Easy Chat"),
-    (SettingId::EasyChatWaitTime, "Easy Chat Wait Time"),
-    (SettingId::AutoPowerOff, "Auto Power Off"),
-    (SettingId::Ldac, "LDAC"),
-    (
-        SettingId::SoundLeakCompensation,
-        "Adaptive Sound Compensation",
-    ),
+const DAILY_CONTROLS: &[SettingId] = &[
+    SettingId::WindNoiseSuppression,
+    SettingId::WearingDetection,
+    SettingId::EasyChat,
+    SettingId::EasyChatWaitTime,
+    SettingId::AutoPowerOff,
+    SettingId::Ldac,
+    SettingId::SoundLeakCompensation,
 ];
 
-const EARBUD_CONTROLS: &[(SettingId, &str)] = &[
-    (SettingId::LeftSinglePress, "Left · Single press"),
-    (SettingId::LeftDoublePress, "Left · Double press"),
-    (SettingId::LeftTriplePress, "Left · Triple press"),
-    (SettingId::LeftLongPress, "Left · Long press"),
-    (SettingId::LeftSlideUp, "Left · Slide up"),
-    (SettingId::LeftSlideDown, "Left · Slide down"),
-    (SettingId::RightSinglePress, "Right · Single press"),
-    (SettingId::RightDoublePress, "Right · Double press"),
-    (SettingId::RightTriplePress, "Right · Triple press"),
-    (SettingId::RightLongPress, "Right · Long press"),
-    (SettingId::RightSlideUp, "Right · Slide up"),
-    (SettingId::RightSlideDown, "Right · Slide down"),
+const EARBUD_CONTROLS: &[SettingId] = &[
+    SettingId::LeftSinglePress,
+    SettingId::LeftDoublePress,
+    SettingId::LeftTriplePress,
+    SettingId::LeftLongPress,
+    SettingId::LeftSlideUp,
+    SettingId::LeftSlideDown,
+    SettingId::RightSinglePress,
+    SettingId::RightDoublePress,
+    SettingId::RightTriplePress,
+    SettingId::RightLongPress,
+    SettingId::RightSlideUp,
+    SettingId::RightSlideDown,
 ];
 
+/// Builds controls with labels from `openscq30-lib`'s own translations (`SettingId::translate`),
+/// so daily/earbud control names follow the system locale instead of being hardcoded English.
 fn collect_controls(
     setting: &impl Fn(SettingId) -> Option<Setting>,
-    definitions: &[(SettingId, &str)],
+    definitions: &[SettingId],
 ) -> Vec<ControlSetting> {
     definitions
         .iter()
-        .filter_map(|(id, label)| {
+        .filter_map(|id| {
             control_value(setting(*id)?).map(|value| ControlSetting {
                 id: *id,
-                label: (*label).to_owned(),
+                label: id.translate(),
                 value,
             })
         })
