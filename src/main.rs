@@ -1,4 +1,4 @@
-use std::{process::Command, thread, time::Duration};
+use std::{collections::HashMap, process::Command, thread, time::Duration};
 
 use eframe::egui::{
     self, Align, Color32, CornerRadius, FontId, Layout, Margin, RichText, Stroke, Vec2,
@@ -67,7 +67,11 @@ fn run_tray_only() {
             match event {
                 DeviceEvent::Searching => tray.update(TrayState::searching()),
                 DeviceEvent::Connecting { .. } => tray.update(TrayState::connecting()),
-                DeviceEvent::Connected { name, snapshot } => {
+                DeviceEvent::Connected {
+                    name,
+                    snapshot,
+                    icon: _,
+                } => {
                     tray.update(TrayState::connected(&snapshot));
                     liberty_control::notify::buds_connected(&name, &snapshot);
                 }
@@ -158,7 +162,8 @@ struct LibertyApp {
     snapshot: DeviceSnapshot,
     message: Option<String>,
     active_tab: ActiveTab,
-    buds_texture: Option<egui::TextureHandle>,
+    current_icon: Option<&'static [u8]>,
+    icon_textures: HashMap<usize, egui::TextureHandle>,
     soundcore_texture: Option<egui::TextureHandle>,
     allow_exit: bool,
 }
@@ -172,15 +177,12 @@ impl LibertyApp {
             worker: DeviceWorker::spawn(),
             tray,
             connection: ConnectionView::Searching,
-            device_name: "Liberty 4 Pro".into(),
+            device_name: "Searching…".into(),
             snapshot: DeviceSnapshot::default(),
             message: None,
             active_tab: ActiveTab::Ambient,
-            buds_texture: load_png_texture(
-                &context.egui_ctx,
-                "liberty-4-pro",
-                include_bytes!("../assets/buds.png"),
-            ),
+            current_icon: None,
+            icon_textures: HashMap::new(),
             soundcore_texture: load_soundcore_texture(
                 &context.egui_ctx,
                 include_bytes!("../assets/soundcore.png"),
@@ -189,7 +191,21 @@ impl LibertyApp {
         }
     }
 
-    fn poll_device(&mut self) {
+    /// Loads and caches a texture for `icon`'s bytes, keyed by their address (each embedded
+    /// icon asset is a distinct `'static` byte slice), and makes it the active icon.
+    fn set_current_icon(&mut self, context: &egui::Context, icon: Option<&'static [u8]>) {
+        self.current_icon = icon;
+        let Some(icon) = icon else { return };
+        let key = icon.as_ptr() as usize;
+        if self.icon_textures.contains_key(&key) {
+            return;
+        }
+        if let Some(texture) = load_png_texture(context, "device-icon", icon) {
+            self.icon_textures.insert(key, texture);
+        }
+    }
+
+    fn poll_device(&mut self, context: &egui::Context) {
         let events = std::iter::from_fn(|| self.worker.try_recv()).collect::<Vec<_>>();
         for event in events {
             match event {
@@ -197,12 +213,17 @@ impl LibertyApp {
                     self.connection = ConnectionView::Searching;
                     self.tray.update(TrayState::searching());
                 }
-                DeviceEvent::Connecting { name: _ } => {
+                DeviceEvent::Connecting { name, icon } => {
                     self.connection = ConnectionView::Connecting;
-                    self.device_name = "Liberty 4 Pro".into();
+                    self.device_name = name;
+                    self.set_current_icon(context, icon);
                     self.tray.update(TrayState::connecting());
                 }
-                DeviceEvent::Connected { name, snapshot } => {
+                DeviceEvent::Connected {
+                    name,
+                    snapshot,
+                    icon,
+                } => {
                     tracing::info!(
                         device = %name,
                         daily_controls = snapshot.daily_controls.len(),
@@ -210,7 +231,8 @@ impl LibertyApp {
                         "connected to earbuds"
                     );
                     self.connection = ConnectionView::Connected;
-                    self.device_name = "Liberty 4 Pro".into();
+                    self.device_name = name.clone();
+                    self.set_current_icon(context, icon);
                     self.tray.update(TrayState::connected(&snapshot));
                     liberty_control::notify::buds_connected(&name, &snapshot);
                     self.snapshot = snapshot;
@@ -302,7 +324,10 @@ impl LibertyApp {
                 ui.vertical_centered(|ui| {
                     ui.heading(RichText::new(&self.device_name).size(27.0).color(TEXT));
                     ui.add_space(8.0);
-                    draw_buds(ui, self.buds_texture.as_ref());
+                    let icon_texture = self
+                        .current_icon
+                        .and_then(|icon| self.icon_textures.get(&(icon.as_ptr() as usize)));
+                    draw_buds(ui, icon_texture);
                     ui.add_space(14.0);
                     ui.columns(3, |columns| {
                         battery(&mut columns[0], "L", self.snapshot.battery_left);
@@ -549,7 +574,7 @@ impl LibertyApp {
 impl eframe::App for LibertyApp {
     fn update(&mut self, context: &egui::Context, _frame: &mut eframe::Frame) {
         self.poll_tray(context);
-        self.poll_device();
+        self.poll_device(context);
         context.request_repaint_after(Duration::from_millis(100));
 
         let close_requested = context.input(|input| input.viewport().close_requested());

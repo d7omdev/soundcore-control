@@ -7,26 +7,28 @@ use std::{
 use anyhow::{Context, Result, anyhow};
 use macaddr::MacAddr6;
 use openscq30_lib::{
-    DeviceModel, OpenSCQ30Session,
+    OpenSCQ30Session,
+    connection::ConnectionDescriptor,
     device::OpenSCQ30Device,
     settings::{Setting, SettingId},
     storage::PairedDevice,
 };
 use tokio::sync::mpsc as tokio_mpsc;
 
+use crate::devices::{DEVICE_PROFILES, DeviceProfile, find_matching_descriptor};
 use crate::domain::{DeviceCommand, DeviceSnapshot, setting_changes, snapshot_from_settings};
-
-pub(crate) const DEVICE_NAME: &str = "soundcore Liberty 4 Pro";
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum DeviceEvent {
     Searching,
     Connecting {
         name: String,
+        icon: Option<&'static [u8]>,
     },
     Connected {
         name: String,
         snapshot: DeviceSnapshot,
+        icon: Option<&'static [u8]>,
     },
     Snapshot(DeviceSnapshot),
     Error(String),
@@ -92,21 +94,22 @@ async fn run_device(
     let session = OpenSCQ30Session::new(database_path()?)
         .await
         .context("could not initialize app storage")?;
-    let descriptor = find_liberty_4_pro(&session).await?;
+    let (descriptor, profile) = find_target_device(&session).await?;
     events
         .send(DeviceEvent::Connecting {
-            name: descriptor.name.clone(),
+            name: profile.display_name.to_owned(),
+            icon: profile.icon,
         })
         .ok();
 
     session
         .pair(PairedDevice {
             mac_address: descriptor.mac_address,
-            model: DeviceModel::SoundcoreA3954,
+            model: profile.model,
             is_demo: false,
         })
         .await
-        .context("could not register the Liberty 4 Pro")?;
+        .with_context(|| format!("could not register the {}", profile.display_name))?;
 
     let device = session
         .connect(descriptor.mac_address)
@@ -116,37 +119,44 @@ async fn run_device(
     let snapshot = read_snapshot(device.as_ref());
     events
         .send(DeviceEvent::Connected {
-            name: descriptor.name,
+            name: profile.display_name.to_owned(),
             snapshot,
+            icon: profile.icon,
         })
         .ok();
 
     event_loop(device, descriptor.mac_address, &mut commands, events).await
 }
 
-async fn find_liberty_4_pro(
+/// Tries each known device profile in turn, querying BlueZ for devices of that model until
+/// one matches (by configured MAC address, or by the profile's expected Bluetooth name).
+async fn find_target_device(
     session: &OpenSCQ30Session,
-) -> Result<openscq30_lib::connection::ConnectionDescriptor> {
-    let devices = session
-        .list_devices(DeviceModel::SoundcoreA3954)
-        .await
-        .context("could not query connected Bluetooth devices")?;
+) -> Result<(ConnectionDescriptor, &'static DeviceProfile)> {
+    let configured_mac = configured_mac_address()?;
 
-    if let Some(mac_address) = configured_mac_address()? {
-        return devices
-            .into_iter()
-            .find(|device| device.mac_address == mac_address)
-            .ok_or_else(|| anyhow!("configured device {mac_address} is not connected"));
+    for profile in DEVICE_PROFILES {
+        let descriptors = session
+            .list_devices(profile.model)
+            .await
+            .context("could not query connected Bluetooth devices")?;
+        if let Some(descriptor) = find_matching_descriptor(&descriptors, profile, configured_mac) {
+            return Ok((descriptor, profile));
+        }
     }
 
-    devices
-        .into_iter()
-        .find(|device| device.name.eq_ignore_ascii_case(DEVICE_NAME))
-        .ok_or_else(|| {
-            anyhow!(
-                "Liberty 4 Pro was not found. Connect it in Bluetooth settings, then reopen the app"
-            )
-        })
+    if let Some(mac_address) = configured_mac {
+        return Err(anyhow!("configured device {mac_address} is not connected"));
+    }
+    let supported = DEVICE_PROFILES
+        .iter()
+        .map(|profile| profile.display_name)
+        .collect::<Vec<_>>()
+        .join(", ");
+    Err(anyhow!(
+        "No supported earbuds were found. Connect one of the following in Bluetooth settings, \
+         then reopen the app: {supported}"
+    ))
 }
 
 async fn event_loop(
@@ -254,11 +264,11 @@ async fn disconnect_bluetooth(mac_address: MacAddr6) -> Result<()> {
         .context("could not find the Bluetooth adapter")?;
     let device = adapter
         .device(mac_address.into())
-        .context("could not access the Liberty 4 Pro in BlueZ")?;
+        .context("could not access the earbuds in BlueZ")?;
     device
         .disconnect()
         .await
-        .context("BlueZ could not disconnect the Liberty 4 Pro")
+        .context("BlueZ could not disconnect the earbuds")
 }
 
 fn read_snapshot(device: &dyn OpenSCQ30Device) -> DeviceSnapshot {

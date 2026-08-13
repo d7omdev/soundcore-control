@@ -4,13 +4,14 @@ use anyhow::{Context, Result, anyhow};
 use bluer::{Adapter, Address, Device, DeviceEvent, DeviceProperty, Session};
 use futures::{StreamExt, pin_mut};
 
-use crate::device::{DEVICE_NAME, configured_mac_address};
+use crate::device::configured_mac_address;
+use crate::devices::matches_known_profile;
 
-/// Watches BlueZ for the Liberty 4 Pro connecting and launches the tray app when it does.
+/// Watches BlueZ for a supported earbud connecting and launches the tray app when it does.
 ///
 /// Runs forever; reconnects to BlueZ and retries discovery on any error.
 pub async fn run() {
-    tracing::info!("watching for Liberty 4 Pro Bluetooth connections");
+    tracing::info!("watching for supported Soundcore Bluetooth connections");
     loop {
         if let Err(error) = watch_once().await {
             tracing::warn!(%error, "Bluetooth watcher stopped, retrying in 10s");
@@ -29,13 +30,13 @@ async fn watch_once() -> Result<()> {
 
     let target = find_target(&adapter, configured)
         .await?
-        .ok_or_else(|| anyhow!("Liberty 4 Pro is not paired with this adapter yet"))?;
+        .ok_or_else(|| anyhow!("no supported earbuds are paired with this adapter yet"))?;
     let device = adapter.device(target)?;
 
     let mut was_connected = device.is_connected().await.unwrap_or(false);
     tracing::info!(
         connected = was_connected,
-        "watching Liberty 4 Pro connection state"
+        "watching earbuds connection state"
     );
 
     let events = device
@@ -49,7 +50,7 @@ async fn watch_once() -> Result<()> {
             continue;
         };
         if connected && !was_connected {
-            tracing::info!("Liberty 4 Pro connected over Bluetooth");
+            tracing::info!("earbuds connected over Bluetooth");
             launch_app();
         }
         was_connected = connected;
@@ -83,7 +84,7 @@ async fn matches_target_name(device: &Device) -> bool {
         .await
         .ok()
         .flatten()
-        .is_some_and(|name| name.eq_ignore_ascii_case(DEVICE_NAME))
+        .is_some_and(|name| matches_known_profile(&name))
 }
 
 fn launch_app() {
