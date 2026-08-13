@@ -70,23 +70,28 @@ fn run_tray_only() {
     thread::sleep(Duration::from_millis(500));
     let worker = DeviceWorker::spawn();
     let mut open_window = false;
+    let mut device_name = String::new();
 
     'service: loop {
         while let Some(event) = worker.try_recv() {
             match event {
                 DeviceEvent::Searching => tray.update(TrayState::searching()),
-                DeviceEvent::Connecting { .. } => tray.update(TrayState::connecting()),
+                DeviceEvent::Connecting { name, .. } => {
+                    device_name = name;
+                    tray.update(TrayState::connecting(&device_name));
+                }
                 DeviceEvent::Connected {
                     name,
                     snapshot,
                     icon: _,
                     supports_manual_ambient_ranges: _,
                 } => {
-                    tray.update(TrayState::connected(&snapshot));
-                    liberty_control::notify::buds_connected(&name, &snapshot);
+                    device_name = name;
+                    tray.update(TrayState::connected(&device_name, &snapshot));
+                    liberty_control::notify::buds_connected(&device_name, &snapshot);
                 }
                 DeviceEvent::Snapshot(snapshot) => {
-                    tray.update(TrayState::connected(&snapshot));
+                    tray.update(TrayState::connected(&device_name, &snapshot));
                 }
                 DeviceEvent::Error(error) => {
                     tracing::error!(%error, "tray Bluetooth error");
@@ -234,7 +239,7 @@ impl LibertyApp {
                     self.device_name = name;
                     self.supports_manual_ambient_ranges = supports_manual_ambient_ranges;
                     self.set_current_icon(context, icon);
-                    self.tray.update(TrayState::connecting());
+                    self.tray.update(TrayState::connecting(&self.device_name));
                 }
                 DeviceEvent::Connected {
                     name,
@@ -252,13 +257,15 @@ impl LibertyApp {
                     self.device_name = name.clone();
                     self.supports_manual_ambient_ranges = supports_manual_ambient_ranges;
                     self.set_current_icon(context, icon);
-                    self.tray.update(TrayState::connected(&snapshot));
+                    self.tray
+                        .update(TrayState::connected(&self.device_name, &snapshot));
                     liberty_control::notify::buds_connected(&name, &snapshot);
                     self.snapshot = snapshot;
                     self.message = None;
                 }
                 DeviceEvent::Snapshot(snapshot) => {
-                    self.tray.update(TrayState::connected(&snapshot));
+                    self.tray
+                        .update(TrayState::connected(&self.device_name, &snapshot));
                     self.snapshot = snapshot;
                     self.connection = ConnectionView::Connected;
                     self.message = None;

@@ -13,8 +13,13 @@ pub enum TrayAction {
     Quit,
 }
 
+/// Shown in the tray title/tooltip/menu when no specific device is known yet
+/// (searching, disconnected, failed).
+const APP_NAME: &str = "Liberty Control";
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct TrayState {
+    device_name: Option<String>,
     status: String,
     connected: bool,
     battery_left: Option<u8>,
@@ -39,8 +44,9 @@ impl TrayState {
     }
 
     #[must_use]
-    pub fn connecting() -> Self {
+    pub fn connecting(device_name: &str) -> Self {
         Self {
+            device_name: Some(device_name.to_owned()),
             status: "Connecting…".into(),
             ..Self::disconnected()
         }
@@ -49,6 +55,7 @@ impl TrayState {
     #[must_use]
     pub fn disconnected() -> Self {
         Self {
+            device_name: None,
             status: "Disconnected".into(),
             connected: false,
             battery_left: None,
@@ -67,8 +74,9 @@ impl TrayState {
     }
 
     #[must_use]
-    pub fn connected(snapshot: &DeviceSnapshot) -> Self {
+    pub fn connected(device_name: &str, snapshot: &DeviceSnapshot) -> Self {
         Self {
+            device_name: Some(device_name.to_owned()),
             status: "Connected".into(),
             connected: true,
             battery_left: snapshot.battery_left,
@@ -76,6 +84,10 @@ impl TrayState {
             battery_case: snapshot.battery_case,
             listening_mode: Some(snapshot.listening_mode),
         }
+    }
+
+    fn device_label(&self) -> &str {
+        self.device_name.as_deref().unwrap_or(APP_NAME)
     }
 }
 
@@ -189,7 +201,7 @@ impl ksni::Tray for LibertyTray {
     }
 
     fn title(&self) -> String {
-        format!("Liberty 4 Pro · {}", self.state.status)
+        format!("{} · {}", self.state.device_label(), self.state.status)
     }
 
     fn status(&self) -> ksni::Status {
@@ -212,7 +224,7 @@ impl ksni::Tray for LibertyTray {
         ksni::ToolTip {
             icon_name: self.icon_name(),
             icon_pixmap: self.icon_pixmap(),
-            title: "Liberty 4 Pro".into(),
+            title: self.state.device_label().to_owned(),
             description: format!(
                 "{} · L {} · R {} · Case {}",
                 self.state.status,
@@ -237,7 +249,11 @@ impl ksni::Tray for LibertyTray {
             }
             .into(),
             MenuItem::Separator,
-            info_item(format!("Liberty 4 Pro — {}", self.state.status)),
+            info_item(format!(
+                "{} — {}",
+                self.state.device_label(),
+                self.state.status
+            )),
             info_item(format!(
                 "L {}   R {}   Case {}",
                 battery_value(self.state.battery_left),
@@ -361,9 +377,10 @@ mod tests {
             ..DeviceSnapshot::default()
         };
 
-        let state = TrayState::connected(&snapshot);
+        let state = TrayState::connected("Test Earbuds", &snapshot);
 
         assert!(state.connected);
+        assert_eq!(state.device_label(), "Test Earbuds");
         assert_eq!(state.listening_mode, Some(ListeningMode::Normal));
         assert_eq!(battery_value(state.battery_left), "94%");
     }
