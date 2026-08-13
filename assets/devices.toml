@@ -1,7 +1,8 @@
 # Every Soundcore model this app knows how to drive.
 #
 # `model` must match a variant name from openscq30-lib's `DeviceModel` enum exactly
-# (see https://github.com/Oppzippy/OpenSCQ30/blob/main/lib/src/devices/device_model.rs).
+# (see https://github.com/Oppzippy/OpenSCQ30/blob/08b28dd8ce8c9f91c3ef44ad25c9d5f3491a2aa0/lib/src/devices/device_model.rs,
+# the exact revision pinned in Cargo.toml; this file may have moved on later revisions).
 # `bluetooth_name` is matched case-insensitively against the BlueZ-advertised device
 # name, and for every entry besides Liberty 4 Pro and R60i NC it is an unverified guess
 # following the "soundcore <Product>" convention; confirm on real hardware before
