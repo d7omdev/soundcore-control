@@ -118,7 +118,7 @@ impl SoundcoreApp {
                     tracing::info!(
                         device = %name,
                         daily_controls = snapshot.daily_controls.len(),
-                        earbud_controls = snapshot.earbud_controls.len(),
+                        button_controls = snapshot.button_controls.len(),
                         "connected to earbuds"
                     );
                     self.connection = ConnectionView::Connected;

@@ -37,11 +37,17 @@ impl SoundcoreApp {
                         .and_then(|key| self.icon_textures.get(key));
                     draw_buds(ui, icon_texture);
                     ui.add_space(14.0);
-                    ui.columns(3, |columns| {
-                        battery(&mut columns[0], "L", self.snapshot.battery_left);
-                        battery(&mut columns[1], "R", self.snapshot.battery_right);
-                        battery(&mut columns[2], "Case", self.snapshot.battery_case);
-                    });
+                    if let Some(level) = self.snapshot.battery_single {
+                        ui.columns(1, |columns| {
+                            battery(&mut columns[0], "Battery", Some(level));
+                        });
+                    } else {
+                        ui.columns(3, |columns| {
+                            battery(&mut columns[0], "L", self.snapshot.battery_left);
+                            battery(&mut columns[1], "R", self.snapshot.battery_right);
+                            battery(&mut columns[2], "Case", self.snapshot.battery_case);
+                        });
+                    }
                     ui.add_space(8.0);
                     let (color, text) = match self.connection {
                         ConnectionView::Searching => (WARNING, "Looking for earbuds…"),

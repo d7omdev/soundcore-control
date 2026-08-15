@@ -166,7 +166,7 @@ fn extracts_core_controls_from_device_settings() {
 }
 
 #[test]
-fn extracts_daily_and_earbud_controls() {
+fn extracts_daily_and_button_controls() {
     let settings = HashMap::from([
         (SettingId::EasyChat, Setting::Toggle { value: true }),
         (
@@ -189,8 +189,39 @@ fn extracts_daily_and_earbud_controls() {
 
     assert_eq!(snapshot.daily_controls.len(), 2);
     assert_eq!(snapshot.daily_controls[0].label, "Easy Chat");
-    assert_eq!(snapshot.earbud_controls.len(), 1);
-    assert_eq!(snapshot.earbud_controls[0].label, "Left Single Press");
+    assert_eq!(snapshot.button_controls.len(), 1);
+    assert_eq!(snapshot.button_controls[0].label, "Left Single Press");
+}
+
+#[test]
+fn single_battery_devices_populate_battery_single_only() {
+    let settings = HashMap::from([(SettingId::BatteryLevel, battery_value(5, 10))]);
+
+    let snapshot = snapshot_from_settings(|id| settings.get(&id).cloned());
+
+    assert_eq!(snapshot.battery_single, Some(50));
+    assert_eq!(snapshot.battery_left, None);
+    assert_eq!(snapshot.battery_right, None);
+    assert_eq!(snapshot.battery_case, None);
+}
+
+#[test]
+fn headphone_button_settings_populate_button_controls() {
+    let settings = HashMap::from([(
+        SettingId::SinglePress,
+        Setting::OptionalSelect {
+            setting: Select {
+                options: vec![Cow::Borrowed("PlayPause"), Cow::Borrowed("VoiceAssistant")],
+                localized_options: vec!["Play / Pause".into(), "Voice Assistant".into()],
+            },
+            value: Some(Cow::Borrowed("PlayPause")),
+        },
+    )]);
+
+    let snapshot = snapshot_from_settings(|id| settings.get(&id).cloned());
+
+    assert_eq!(snapshot.button_controls.len(), 1);
+    assert_eq!(snapshot.button_controls[0].label, "Single Press");
 }
 
 #[test]

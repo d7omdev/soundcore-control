@@ -8,7 +8,7 @@ use crate::ui::widgets::{card, section_title};
 impl SoundcoreApp {
     pub(crate) fn controls_card(&mut self, ui: &mut egui::Ui) {
         let daily_controls = self.snapshot.daily_controls.clone();
-        let earbud_controls = self.snapshot.earbud_controls.clone();
+        let button_controls = self.snapshot.button_controls.clone();
         let connected = self.is_connected();
         let mut commands = Vec::new();
 
@@ -27,14 +27,18 @@ impl SoundcoreApp {
 
         ui.add_space(14.0);
         card(ui, |ui| {
-            section_title(ui, "Earbud Controls", "Choose actions for each gesture");
+            section_title(
+                ui,
+                "Button Controls",
+                "Choose an action for each button or gesture",
+            );
             ui.add_space(12.0);
-            if earbud_controls.is_empty() {
+            if button_controls.is_empty() {
                 ui.label(
-                    RichText::new("Gesture controls will appear after connection.").color(MUTED),
+                    RichText::new("Button controls will appear after connection.").color(MUTED),
                 );
             }
-            for control in &earbud_controls {
+            for control in &button_controls {
                 if let Some(command) = control_row(ui, control, connected) {
                     commands.push(command);
                 }

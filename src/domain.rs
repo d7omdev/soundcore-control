@@ -48,6 +48,7 @@ pub struct DeviceSnapshot {
     pub battery_left: Option<u8>,
     pub battery_right: Option<u8>,
     pub battery_case: Option<u8>,
+    pub battery_single: Option<u8>,
     pub listening_mode: ListeningMode,
     pub ambient_level: Option<u8>,
     pub mode_options: Vec<SelectOption>,
@@ -55,7 +56,7 @@ pub struct DeviceSnapshot {
     pub preset_options: Vec<SelectOption>,
     pub equalizer: Option<EqualizerState>,
     pub daily_controls: Vec<ControlSetting>,
-    pub earbud_controls: Vec<ControlSetting>,
+    pub button_controls: Vec<ControlSetting>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -141,7 +142,9 @@ const DAILY_CONTROLS: &[SettingId] = &[
     SettingId::SoundLeakCompensation,
 ];
 
-const EARBUD_CONTROLS: &[SettingId] = &[
+const BUTTON_CONTROLS: &[SettingId] = &[
+    SettingId::SinglePress,
+    SettingId::DoublePress,
     SettingId::LeftSinglePress,
     SettingId::LeftDoublePress,
     SettingId::LeftTriplePress,
@@ -205,6 +208,7 @@ pub fn snapshot_from_settings(setting: impl Fn(SettingId) -> Option<Setting>) ->
         battery_left: setting(SettingId::BatteryLevelLeft).and_then(battery_percent),
         battery_right: setting(SettingId::BatteryLevelRight).and_then(battery_percent),
         battery_case: setting(SettingId::CaseBatteryLevel).and_then(battery_percent),
+        battery_single: setting(SettingId::BatteryLevel).and_then(battery_percent),
         listening_mode,
         ambient_level: ambient_level(&setting, listening_mode),
         mode_options,
@@ -212,7 +216,7 @@ pub fn snapshot_from_settings(setting: impl Fn(SettingId) -> Option<Setting>) ->
         preset_options,
         equalizer: setting(SettingId::VolumeAdjustments).and_then(equalizer_state),
         daily_controls: collect_controls(&setting, DAILY_CONTROLS),
-        earbud_controls: collect_controls(&setting, EARBUD_CONTROLS),
+        button_controls: collect_controls(&setting, BUTTON_CONTROLS),
     }
 }
 
