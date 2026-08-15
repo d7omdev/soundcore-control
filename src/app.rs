@@ -105,6 +105,7 @@ impl SoundcoreApp {
                 } => {
                     self.connection = ConnectionView::Connecting;
                     self.supports_manual_ambient_ranges = supports_manual_ambient_ranges;
+                    self.snapshot = DeviceSnapshot::default();
                     self.set_current_icon(context, &name, icon.as_deref());
                     self.device_name = name;
                     self.tray.update(TrayState::connecting(&self.device_name));
@@ -188,6 +189,7 @@ impl SoundcoreApp {
     pub(crate) fn reconnect(&mut self) {
         self.worker = DeviceWorker::spawn();
         self.connection = ConnectionView::Searching;
+        self.snapshot = DeviceSnapshot::default();
         self.tray.update(TrayState::searching());
         self.message = None;
     }
@@ -216,6 +218,19 @@ impl SoundcoreApp {
 
     pub(crate) fn is_connected(&self) -> bool {
         self.connection == ConnectionView::Connected
+    }
+
+    /// Whether the connected device reports anything for the Ambient tab: either a manual
+    /// intensity range or at least one discrete listening mode. Devices with neither (e.g.
+    /// the P20i, which has no ANC hardware) don't get an Ambient tab at all.
+    pub(crate) fn has_ambient_options(&self) -> bool {
+        self.supports_manual_ambient_ranges || !self.snapshot.mode_options.is_empty()
+    }
+
+    /// Whether the connected device reports any daily or button control. Devices with
+    /// neither don't get a Controls tab at all.
+    pub(crate) fn has_controls(&self) -> bool {
+        !self.snapshot.daily_controls.is_empty() || !self.snapshot.button_controls.is_empty()
     }
 }
 

@@ -67,12 +67,27 @@ impl SoundcoreApp {
     pub(crate) fn tab_bar(&mut self, ui: &mut egui::Ui) {
         use crate::app::ActiveTab;
 
-        ui.columns(3, |columns| {
-            for (column, (tab, icon, label)) in columns.iter_mut().zip([
-                (ActiveTab::Ambient, TabIcon::Ambient, "Ambient"),
-                (ActiveTab::Equalizer, TabIcon::Equalizer, "Equalizer"),
-                (ActiveTab::Controls, TabIcon::Controls, "Controls"),
-            ]) {
+        let tabs: Vec<(ActiveTab, TabIcon, &str)> = [
+            (ActiveTab::Ambient, TabIcon::Ambient, "Ambient"),
+            (ActiveTab::Equalizer, TabIcon::Equalizer, "Equalizer"),
+            (ActiveTab::Controls, TabIcon::Controls, "Controls"),
+        ]
+        .into_iter()
+        .filter(|(tab, _, _)| match tab {
+            ActiveTab::Ambient => self.has_ambient_options(),
+            ActiveTab::Equalizer => true,
+            ActiveTab::Controls => self.has_controls(),
+        })
+        .collect();
+
+        if !tabs.iter().any(|(tab, _, _)| *tab == self.active_tab) {
+            if let Some((tab, _, _)) = tabs.first() {
+                self.active_tab = *tab;
+            }
+        }
+
+        ui.columns(tabs.len().max(1), |columns| {
+            for (column, (tab, icon, label)) in columns.iter_mut().zip(tabs) {
                 let response = tab_button(column, icon, label, self.active_tab == tab);
                 if response.clicked() {
                     self.active_tab = tab;

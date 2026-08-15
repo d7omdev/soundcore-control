@@ -6,6 +6,9 @@ use crate::ui::theme::{CARD_ALT, HERO, MUTED, TEXT};
 use crate::ui::widgets::{card, section_title};
 
 impl SoundcoreApp {
+    /// Only ever shown when `SoundcoreApp::has_ambient_options` is true (`tab_bar` hides the
+    /// Ambient tab, and reroutes `active_tab` away from it, otherwise), so this can assume
+    /// there's always something to render.
     pub(crate) fn sound_mode_card(&mut self, ui: &mut egui::Ui) {
         card(ui, |ui| {
             if self.supports_manual_ambient_ranges {
