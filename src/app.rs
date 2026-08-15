@@ -188,6 +188,7 @@ impl SoundcoreApp {
                     self.send(DeviceCommand::SetListeningMode(mode));
                 }
                 TrayAction::Quit => {
+                    soundcore_control::watch::stop_background_watcher();
                     self.allow_exit = true;
                     context.send_viewport_cmd(egui::ViewportCommand::Close);
                 }

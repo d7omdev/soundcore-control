@@ -3393,6 +3393,7 @@ dependencies = [
  "i18n-embed",
  "image",
  "ksni",
+ "libc",
  "macaddr",
  "notify-rust",
  "openscq30-i18n",

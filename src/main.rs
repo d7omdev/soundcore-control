@@ -101,7 +101,10 @@ fn run_tray_only() {
                 TrayAction::SetListeningMode(mode) => {
                     let _ = worker.send(DeviceCommand::SetListeningMode(mode));
                 }
-                TrayAction::Quit => break 'service,
+                TrayAction::Quit => {
+                    soundcore_control::watch::stop_background_watcher();
+                    break 'service;
+                }
             }
         }
         thread::sleep(Duration::from_millis(100));

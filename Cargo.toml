@@ -26,6 +26,7 @@ eframe = { version = "0.33.3", default-features = false, features = [
 i18n-embed = { version = "0.16", features = ["desktop-requester"] }
 image = { version = "0.25", default-features = false, features = ["png"] }
 ksni = "0.3.5"
+libc = "0.2"
 macaddr = "1"
 notify-rust = "4"
 openscq30-i18n = { git = "https://github.com/Oppzippy/OpenSCQ30.git", rev = "08b28dd8ce8c9f91c3ef44ad25c9d5f3491a2aa0" }

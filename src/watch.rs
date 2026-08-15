@@ -88,7 +88,10 @@ async fn matches_target_name(device: &Device) -> bool {
 }
 
 fn launch_app() {
-    if app_already_running() {
+    if find_own_processes(|second_argument| matches!(second_argument, None | Some("--tray-only")))
+        .next()
+        .is_some()
+    {
         tracing::debug!("Soundcore Control is already running; not spawning another instance");
         return;
     }
@@ -101,36 +104,64 @@ fn launch_app() {
     }
 }
 
-/// Checks `/proc` for a running GUI or tray-only instance, ignoring this watcher process itself.
-fn app_already_running() -> bool {
-    let Some(exe_name) = std::env::current_exe()
-        .ok()
-        .and_then(|path| path.file_name().map(OsString::from))
-    else {
-        return false;
-    };
-    let Ok(entries) = std::fs::read_dir("/proc") else {
-        return false;
-    };
+/// Stops any running `--watch` background process for this executable, so quitting the app
+/// (from the tray or the main window) doesn't leave the watcher alive to silently relaunch a
+/// new instance, and reopen a Bluetooth connection, the next time the earbuds connect.
+///
+/// Tries `systemctl --user stop` first, since `install.sh` runs the watcher as a
+/// `Restart=on-failure` systemd unit: killing that process directly (bypassing systemd's own
+/// stop path) makes systemd treat the death as a crash and respawn it a few seconds later,
+/// undoing the point of this function entirely. Falls back to signaling the process directly
+/// for installs that aren't running the watcher under systemd (e.g. a manually started
+/// `--watch` process during development).
+pub fn stop_background_watcher() {
+    if let Ok(status) = Command::new("systemctl")
+        .args(["--user", "stop", "soundcore-control-watch.service"])
+        .status()
+        && status.success()
+    {
+        tracing::info!("stopped the background Bluetooth watcher via systemctl");
+        return;
+    }
 
-    for entry in entries.flatten() {
-        let Ok(cmdline) = std::fs::read(entry.path().join("cmdline")) else {
-            continue;
-        };
+    for pid in find_own_processes(|second_argument| second_argument == Some("--watch")) {
+        // SAFETY: `pid` is a real, currently-running process id just read from `/proc`;
+        // sending SIGTERM is a normal signal delivery, not a memory operation. The process
+        // could in principle have exited and had its pid reused between the /proc scan and
+        // this call; worst case that misdirects a SIGTERM at an unrelated process, not a
+        // memory-safety issue.
+        if unsafe { libc::kill(pid, libc::SIGTERM) } == 0 {
+            tracing::info!(pid, "stopped the background Bluetooth watcher directly");
+        }
+    }
+}
+
+/// Scans `/proc` for other processes running this same executable whose second command-line
+/// argument (the first is the binary path) satisfies `matches_args`, ignoring the calling
+/// process itself. Shared by `launch_app` (checking for an existing GUI/tray instance) and
+/// `stop_background_watcher` (finding the `--watch` instance to signal).
+fn find_own_processes(matches_args: impl Fn(Option<&str>) -> bool) -> impl Iterator<Item = i32> {
+    let own_pid = std::process::id();
+    let exe_name = std::env::current_exe()
+        .ok()
+        .and_then(|path| path.file_name().map(OsString::from));
+    let entries = std::fs::read_dir("/proc").into_iter().flatten();
+
+    entries.flatten().filter_map(move |entry| {
+        let pid = entry.file_name().to_str()?.parse::<i32>().ok()?;
+        if pid as u32 == own_pid {
+            return None;
+        }
+        let exe_name = exe_name.as_deref()?;
+        let cmdline = std::fs::read(entry.path().join("cmdline")).ok()?;
         let mut arguments = cmdline
             .split(|&byte| byte == 0)
             .filter(|argument| !argument.is_empty())
             .map(|argument| String::from_utf8_lossy(argument).into_owned());
-        let Some(binary) = arguments.next() else {
-            continue;
-        };
-        if Path::new(&binary).file_name() != Some(exe_name.as_os_str()) {
-            continue;
+        let binary = arguments.next()?;
+        if Path::new(&binary).file_name() != Some(exe_name) {
+            return None;
         }
-        match arguments.next().as_deref() {
-            None | Some("--tray-only") => return true,
-            _ => {}
-        }
-    }
-    false
+        matches_args(arguments.next().as_deref()).then_some(pid)
+    })
 }
