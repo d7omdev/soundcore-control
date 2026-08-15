@@ -33,16 +33,19 @@ supports_manual_ambient_ranges = false
 model = "SoundcoreA3949"
 bluetooth_name = "soundcore P20i"
 display_name = "P20i"
+icon = "p20i.png"
 supports_manual_ambient_ranges = false
 
 [[device]]
 model = "SoundcoreA3028"
 bluetooth_name = "soundcore Life Q30"
 display_name = "Life Q30"
+icon = "lifeq30.png"
 supports_manual_ambient_ranges = false
 
 [[device]]
 model = "SoundcoreA3062"
 bluetooth_name = "soundcore Space One Pro"
 display_name = "Space One Pro"
+icon = "spaceonepro.png"
 supports_manual_ambient_ranges = false

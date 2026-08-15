@@ -75,7 +75,7 @@ pub(crate) fn draw_buds(ui: &mut egui::Ui, texture: Option<&egui::TextureHandle>
     if let Some(texture) = texture {
         ui.add(
             egui::Image::new(texture)
-                .fit_to_exact_size(Vec2::new(236.0, 136.0))
+                .fit_to_exact_size(Vec2::new(236.0, 280.0))
                 .maintain_aspect_ratio(true),
         );
         return;

@@ -166,17 +166,13 @@ mod tests {
     }
 
     #[test]
-    fn loads_icons_for_entries_that_declare_one() {
-        let liberty = DEVICE_PROFILES
-            .iter()
-            .find(|profile| profile.display_name == "Liberty 4 Pro")
-            .unwrap();
-        assert!(liberty.icon.is_some());
-
-        let p20i = DEVICE_PROFILES
-            .iter()
-            .find(|profile| profile.display_name == "P20i")
-            .unwrap();
-        assert!(p20i.icon.is_none());
+    fn loads_icons_for_every_registered_profile() {
+        for profile in DEVICE_PROFILES.iter() {
+            assert!(
+                profile.icon.is_some(),
+                "{} should have an icon key wired up",
+                profile.display_name
+            );
+        }
     }
 }
