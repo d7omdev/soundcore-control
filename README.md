@@ -71,6 +71,17 @@ rustup default stable
 
 Package names differ on other distributions.
 
+## Try it without building
+
+Download the latest `.AppImage` from the [Releases page](https://github.com/d7omdev/soundcore-control/releases), make it executable, and run it:
+
+```bash
+chmod +x Soundcore-Control-*.AppImage
+./Soundcore-Control-*.AppImage
+```
+
+No Rust toolchain needed. This is the GUI only, it doesn't set up the background watcher that auto-launches the tray when your earbuds connect (see [Install](#install) below for that).
+
 ## Install
 
 Clone the repository and run the user-level installer:
