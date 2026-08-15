@@ -41,6 +41,10 @@ pub(crate) struct SoundcoreApp {
     pub(crate) icon_textures: HashMap<String, egui::TextureHandle>,
     pub(crate) soundcore_texture: Option<egui::TextureHandle>,
     allow_exit: bool,
+    #[cfg(debug_assertions)]
+    pub(crate) debug_window_open: bool,
+    #[cfg(debug_assertions)]
+    pub(crate) debug_state: crate::ui::debug::DebugState,
 }
 
 impl SoundcoreApp {
@@ -64,6 +68,10 @@ impl SoundcoreApp {
                 include_bytes!("../assets/soundcore.png"),
             ),
             allow_exit: false,
+            #[cfg(debug_assertions)]
+            debug_window_open: false,
+            #[cfg(debug_assertions)]
+            debug_state: crate::ui::debug::DebugState::default(),
         }
     }
 
@@ -93,66 +101,73 @@ impl SoundcoreApp {
     fn poll_device(&mut self, context: &egui::Context) {
         let events = std::iter::from_fn(|| self.worker.try_recv()).collect::<Vec<_>>();
         for event in events {
-            match event {
-                DeviceEvent::Searching => {
-                    self.connection = ConnectionView::Searching;
-                    self.tray.update(TrayState::searching());
+            self.handle_device_event(context, event);
+        }
+    }
+
+    /// Applies one `DeviceEvent` to app state. Shared by real hardware events (via
+    /// `poll_device`) and, in debug builds, by the simulated events the debug window
+    /// injects, so both paths exercise identical UI-update logic.
+    pub(crate) fn handle_device_event(&mut self, context: &egui::Context, event: DeviceEvent) {
+        match event {
+            DeviceEvent::Searching => {
+                self.connection = ConnectionView::Searching;
+                self.tray.update(TrayState::searching());
+            }
+            DeviceEvent::Connecting {
+                name,
+                icon,
+                supports_manual_ambient_ranges,
+            } => {
+                self.connection = ConnectionView::Connecting;
+                self.supports_manual_ambient_ranges = supports_manual_ambient_ranges;
+                self.snapshot = DeviceSnapshot::default();
+                self.set_current_icon(context, &name, icon.as_deref());
+                self.device_name = name;
+                self.tray.update(TrayState::connecting(&self.device_name));
+            }
+            DeviceEvent::Connected {
+                name,
+                snapshot,
+                icon,
+                supports_manual_ambient_ranges,
+            } => {
+                tracing::info!(
+                    device = %name,
+                    daily_controls = snapshot.daily_controls.len(),
+                    button_controls = snapshot.button_controls.len(),
+                    "connected to device"
+                );
+                self.connection = ConnectionView::Connected;
+                self.supports_manual_ambient_ranges = supports_manual_ambient_ranges;
+                self.set_current_icon(context, &name, icon.as_deref());
+                self.device_name = name.clone();
+                self.tray
+                    .update(TrayState::connected(&self.device_name, &snapshot));
+                soundcore_control::notify::buds_connected(&name, &snapshot);
+                self.snapshot = snapshot;
+                self.message = None;
+            }
+            DeviceEvent::Snapshot(snapshot) => {
+                self.tray
+                    .update(TrayState::connected(&self.device_name, &snapshot));
+                self.snapshot = snapshot;
+                self.connection = ConnectionView::Connected;
+                self.message = None;
+            }
+            DeviceEvent::Error(error) => {
+                tracing::error!(%error, "device control error");
+                if self.connection != ConnectionView::Connected {
+                    self.connection = ConnectionView::Failed;
+                    self.tray.update(TrayState::failed());
                 }
-                DeviceEvent::Connecting {
-                    name,
-                    icon,
-                    supports_manual_ambient_ranges,
-                } => {
-                    self.connection = ConnectionView::Connecting;
-                    self.supports_manual_ambient_ranges = supports_manual_ambient_ranges;
-                    self.snapshot = DeviceSnapshot::default();
-                    self.set_current_icon(context, &name, icon.as_deref());
-                    self.device_name = name;
-                    self.tray.update(TrayState::connecting(&self.device_name));
-                }
-                DeviceEvent::Connected {
-                    name,
-                    snapshot,
-                    icon,
-                    supports_manual_ambient_ranges,
-                } => {
-                    tracing::info!(
-                        device = %name,
-                        daily_controls = snapshot.daily_controls.len(),
-                        button_controls = snapshot.button_controls.len(),
-                        "connected to earbuds"
-                    );
-                    self.connection = ConnectionView::Connected;
-                    self.supports_manual_ambient_ranges = supports_manual_ambient_ranges;
-                    self.set_current_icon(context, &name, icon.as_deref());
-                    self.device_name = name.clone();
-                    self.tray
-                        .update(TrayState::connected(&self.device_name, &snapshot));
-                    soundcore_control::notify::buds_connected(&name, &snapshot);
-                    self.snapshot = snapshot;
-                    self.message = None;
-                }
-                DeviceEvent::Snapshot(snapshot) => {
-                    self.tray
-                        .update(TrayState::connected(&self.device_name, &snapshot));
-                    self.snapshot = snapshot;
-                    self.connection = ConnectionView::Connected;
-                    self.message = None;
-                }
-                DeviceEvent::Error(error) => {
-                    tracing::error!(%error, "device control error");
-                    if self.connection != ConnectionView::Connected {
-                        self.connection = ConnectionView::Failed;
-                        self.tray.update(TrayState::failed());
-                    }
-                    self.message = Some(error);
-                }
-                DeviceEvent::Disconnected => {
-                    tracing::warn!("earbuds disconnected");
-                    self.connection = ConnectionView::Disconnected;
-                    self.tray.update(TrayState::disconnected());
-                    self.message = Some("The earbuds disconnected from Bluetooth.".into());
-                }
+                self.message = Some(error);
+            }
+            DeviceEvent::Disconnected => {
+                tracing::warn!("earbuds disconnected");
+                self.connection = ConnectionView::Disconnected;
+                self.tray.update(TrayState::disconnected());
+                self.message = Some("The earbuds disconnected from Bluetooth.".into());
             }
         }
     }
@@ -239,6 +254,18 @@ impl eframe::App for SoundcoreApp {
         self.poll_tray(context);
         self.poll_device(context);
         context.request_repaint_after(Duration::from_millis(100));
+
+        #[cfg(debug_assertions)]
+        {
+            let toggle_pressed =
+                context.input(|input| input.key_pressed(egui::Key::D) && input.modifiers.ctrl);
+            if toggle_pressed {
+                self.debug_window_open = !self.debug_window_open;
+            }
+            if self.debug_window_open {
+                crate::ui::debug::debug_window(self, context);
+            }
+        }
 
         let close_requested = context.input(|input| input.viewport().close_requested());
         let escape_pressed = context.input(|input| input.key_pressed(egui::Key::Escape));
