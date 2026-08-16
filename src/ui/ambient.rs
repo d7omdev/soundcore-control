@@ -165,12 +165,31 @@ fn ambient_slider(
                 current.is_some_and(|selected| level <= usize::from(selected))
             }
         });
-        let fill = match level {
-            Some(level) if is_colored => ambient_gradient((level as f32 - 0.5) / 10.0),
-            None if normal_active => ambient_gradient(0.5),
-            _ => CARD_ALT,
-        };
-        painter.rect_filled(segment, rounding, fill);
+        match level {
+            // Rounded end caps (slots 0 and 10) keep a flat fill since egui's rect
+            // rounding doesn't support per-vertex gradient colors; the gradient barely
+            // shifts across one slot's width there anyway.
+            Some(level) if is_colored && rounding != CornerRadius::ZERO => {
+                painter.rect_filled(
+                    segment,
+                    rounding,
+                    ambient_gradient((level as f32 - 0.5) / 10.0),
+                );
+            }
+            Some(level) if is_colored => {
+                painter.add(gradient_rect(
+                    segment,
+                    ambient_gradient((level as f32 - 1.0) / 10.0),
+                    ambient_gradient(level as f32 / 10.0),
+                ));
+            }
+            None if normal_active => {
+                painter.rect_filled(segment, rounding, ambient_gradient(0.5));
+            }
+            _ => {
+                painter.rect_filled(segment, rounding, CARD_ALT);
+            }
+        }
         if slot > 0 {
             painter.line_segment(
                 [segment.left_top(), segment.left_bottom()],
@@ -231,6 +250,19 @@ fn ambient_slider(
         }
     }
     None
+}
+
+/// A horizontally-interpolated quad: left/right edges get distinct colors and the GPU
+/// blends between them per-pixel, instead of one flat color per segment.
+fn gradient_rect(rect: egui::Rect, left: Color32, right: Color32) -> egui::Shape {
+    let mut mesh = egui::epaint::Mesh::default();
+    mesh.colored_vertex(rect.left_top(), left);
+    mesh.colored_vertex(rect.right_top(), right);
+    mesh.colored_vertex(rect.right_bottom(), right);
+    mesh.colored_vertex(rect.left_bottom(), left);
+    mesh.add_triangle(0, 1, 2);
+    mesh.add_triangle(0, 2, 3);
+    egui::Shape::mesh(mesh)
 }
 
 fn ambient_gradient(position: f32) -> Color32 {
