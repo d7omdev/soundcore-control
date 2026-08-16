@@ -25,6 +25,7 @@ pub struct TrayState {
     battery_left: Option<u8>,
     battery_right: Option<u8>,
     battery_case: Option<u8>,
+    battery_single: Option<u8>,
     listening_mode: Option<ListeningMode>,
 }
 
@@ -61,6 +62,7 @@ impl TrayState {
             battery_left: None,
             battery_right: None,
             battery_case: None,
+            battery_single: None,
             listening_mode: None,
         }
     }
@@ -82,7 +84,21 @@ impl TrayState {
             battery_left: snapshot.battery_left,
             battery_right: snapshot.battery_right,
             battery_case: snapshot.battery_case,
+            battery_single: snapshot.battery_single,
             listening_mode: Some(snapshot.listening_mode),
+        }
+    }
+
+    fn battery_summary(&self) -> String {
+        if let Some(level) = self.battery_single {
+            format!("Battery {}", battery_value(Some(level)))
+        } else {
+            format!(
+                "L {}   R {}   Case {}",
+                battery_value(self.battery_left),
+                battery_value(self.battery_right),
+                battery_value(self.battery_case),
+            )
         }
     }
 
@@ -225,13 +241,7 @@ impl ksni::Tray for SoundcoreTray {
             icon_name: self.icon_name(),
             icon_pixmap: self.icon_pixmap(),
             title: self.state.device_label().to_owned(),
-            description: format!(
-                "{} · L {} · R {} · Case {}",
-                self.state.status,
-                battery_value(self.state.battery_left),
-                battery_value(self.state.battery_right),
-                battery_value(self.state.battery_case),
-            ),
+            description: format!("{} · {}", self.state.status, self.state.battery_summary()),
         }
     }
 
@@ -254,12 +264,7 @@ impl ksni::Tray for SoundcoreTray {
                 self.state.device_label(),
                 self.state.status
             )),
-            info_item(format!(
-                "L {}   R {}   Case {}",
-                battery_value(self.state.battery_left),
-                battery_value(self.state.battery_right),
-                battery_value(self.state.battery_case),
-            )),
+            info_item(self.state.battery_summary()),
             MenuItem::Separator,
             ksni::menu::SubMenu {
                 label: format!(

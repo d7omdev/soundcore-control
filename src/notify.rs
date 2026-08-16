@@ -3,12 +3,16 @@ use notify_rust::{Notification, Timeout};
 use crate::domain::DeviceSnapshot;
 
 pub fn buds_connected(name: &str, snapshot: &DeviceSnapshot) {
-    let body = format!(
-        "L {} · R {} · Case {}",
-        battery(snapshot.battery_left),
-        battery(snapshot.battery_right),
-        battery(snapshot.battery_case),
-    );
+    let body = if let Some(level) = snapshot.battery_single {
+        format!("Battery {}", battery(Some(level)))
+    } else {
+        format!(
+            "L {} · R {} · Case {}",
+            battery(snapshot.battery_left),
+            battery(snapshot.battery_right),
+            battery(snapshot.battery_case),
+        )
+    };
     if let Err(error) = Notification::new()
         .appname("Soundcore Control")
         .summary(&format!("{name} connected"))
