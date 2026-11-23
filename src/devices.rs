@@ -182,7 +182,12 @@ mod tests {
 
     #[test]
     fn loads_icons_for_every_registered_profile() {
-        for profile in DEVICE_PROFILES.iter() {
+        // Experimental read-only aliases (e.g. K20i) have no artwork of their own and use
+        // the generic placeholder rather than another product's picture.
+        for profile in DEVICE_PROFILES
+            .iter()
+            .filter(|profile| !profile.read_only_controls)
+        {
             assert!(
                 profile.icon.is_some(),
                 "{} should have an icon key wired up",
