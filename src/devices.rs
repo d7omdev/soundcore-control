@@ -122,9 +122,16 @@ mod tests {
         }
     }
 
+    fn liberty_4_pro() -> &'static DeviceProfile {
+        DEVICE_PROFILES
+            .iter()
+            .find(|profile| profile.display_name == "Liberty 4 Pro")
+            .expect("Liberty 4 Pro is registered")
+    }
+
     #[test]
     fn matches_by_name_case_insensitively() {
-        let profile = &DEVICE_PROFILES[0];
+        let profile = liberty_4_pro();
         let descriptors = vec![descriptor("SOUNDCORE LIBERTY 4 PRO", "AA:BB:CC:DD:EE:FF")];
 
         let found = find_matching_descriptor(&descriptors, profile, None);
@@ -134,7 +141,7 @@ mod tests {
 
     #[test]
     fn ignores_name_when_mac_is_configured() {
-        let profile = &DEVICE_PROFILES[0];
+        let profile = liberty_4_pro();
         let configured_mac = "11:22:33:44:55:66".parse().unwrap();
         let descriptors = vec![
             descriptor("soundcore Liberty 4 Pro", "AA:BB:CC:DD:EE:FF"),
@@ -148,7 +155,7 @@ mod tests {
 
     #[test]
     fn returns_none_when_nothing_matches() {
-        let profile = &DEVICE_PROFILES[0];
+        let profile = liberty_4_pro();
         let descriptors = vec![descriptor("unrelated device", "AA:BB:CC:DD:EE:FF")];
 
         assert_eq!(find_matching_descriptor(&descriptors, profile, None), None);
