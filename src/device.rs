@@ -217,6 +217,12 @@ async fn event_loop(
                     }
                     continue;
                 }
+                // `openscq30-lib` panics (not errors) when asked to write a setting the model
+                // doesn't register, e.g. a tray ambient-mode pick on earbuds without ambient modes.
+                if is_ambient_write(&command) && device.setting(&SettingId::AmbientSoundMode).is_none() {
+                    tracing::warn!(?command, "dropping ambient write: device has no ambient modes");
+                    continue;
+                }
                 for change in setting_changes(command) {
                     if let Err(error) = device.set_setting_values(vec![change]).await {
                         events.send(DeviceEvent::Error(format!("Could not update the earbuds: {error}"))).ok();
@@ -306,6 +312,13 @@ async fn disconnect_bluetooth(mac_address: MacAddr6) -> Result<()> {
         .disconnect()
         .await
         .context("BlueZ could not disconnect the earbuds")
+}
+
+fn is_ambient_write(command: &DeviceCommand) -> bool {
+    matches!(
+        command,
+        DeviceCommand::SetListeningMode(_) | DeviceCommand::SetAmbientLevel(_)
+    )
 }
 
 fn read_snapshot(device: &dyn OpenSCQ30Device) -> DeviceSnapshot {
