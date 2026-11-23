@@ -22,6 +22,11 @@ pub struct DeviceProfile {
     /// settings manager doesn't register, rather than returning an error. Defaults to
     /// `false` (skip the repair) for any unverified model.
     pub supports_manual_ambient_ranges: bool,
+    /// Experimental/aliased models whose daily and button controls cannot be trusted
+    /// (the state packet layout only partly matches the `openscq30-lib` model they are
+    /// mapped to). Those controls are hidden and their writes are dropped, so only
+    /// battery, ambient and equalizer are exposed. Defaults to `false`.
+    pub read_only_controls: bool,
 }
 
 #[derive(Debug, Deserialize)]
@@ -36,6 +41,8 @@ struct RawDeviceProfile {
     display_name: String,
     icon: Option<String>,
     supports_manual_ambient_ranges: bool,
+    #[serde(default)]
+    read_only_controls: bool,
 }
 
 /// Device icon PNGs, named in `assets/devices.toml`'s `icon` field.
@@ -75,6 +82,7 @@ fn load_device_profiles() -> Vec<DeviceProfile> {
                 display_name: raw.display_name,
                 icon,
                 supports_manual_ambient_ranges: raw.supports_manual_ambient_ranges,
+                read_only_controls: raw.read_only_controls,
             }
         })
         .collect()
