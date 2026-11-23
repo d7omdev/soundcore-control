@@ -27,6 +27,9 @@ pub struct TrayState {
     battery_case: Option<u8>,
     battery_single: Option<u8>,
     listening_mode: Option<ListeningMode>,
+    /// Whether the device has any ambient control; the Ambient mode submenu is disabled
+    /// otherwise (picking a mode on such a device would write an unregistered setting).
+    has_ambient: bool,
 }
 
 impl Default for TrayState {
@@ -64,6 +67,7 @@ impl TrayState {
             battery_case: None,
             battery_single: None,
             listening_mode: None,
+            has_ambient: false,
         }
     }
 
@@ -76,7 +80,7 @@ impl TrayState {
     }
 
     #[must_use]
-    pub fn connected(device_name: &str, snapshot: &DeviceSnapshot) -> Self {
+    pub fn connected(device_name: &str, snapshot: &DeviceSnapshot, has_ambient: bool) -> Self {
         Self {
             device_name: Some(device_name.to_owned()),
             status: "Connected".into(),
@@ -86,6 +90,7 @@ impl TrayState {
             battery_case: snapshot.battery_case,
             battery_single: snapshot.battery_single,
             listening_mode: Some(snapshot.listening_mode),
+            has_ambient,
         }
     }
 
@@ -271,7 +276,7 @@ impl ksni::Tray for SoundcoreTray {
                     "Ambient mode: {}",
                     selected_mode.map_or("—", listening_mode_label)
                 ),
-                enabled: self.state.connected,
+                enabled: self.state.connected && self.state.has_ambient,
                 submenu: vec![
                     ksni::menu::RadioGroup {
                         selected: match selected_mode {
@@ -382,11 +387,20 @@ mod tests {
             ..DeviceSnapshot::default()
         };
 
-        let state = TrayState::connected("Test Earbuds", &snapshot);
+        let state = TrayState::connected("Test Earbuds", &snapshot, true);
 
         assert!(state.connected);
+        assert!(state.has_ambient);
         assert_eq!(state.device_label(), "Test Earbuds");
         assert_eq!(state.listening_mode, Some(ListeningMode::Normal));
         assert_eq!(battery_value(state.battery_left), "94%");
+    }
+
+    #[test]
+    fn connected_state_without_ambient_options_disables_ambient_menu() {
+        let state = TrayState::connected("K20i", &DeviceSnapshot::default(), false);
+
+        assert!(state.connected);
+        assert!(!state.has_ambient);
     }
 }
