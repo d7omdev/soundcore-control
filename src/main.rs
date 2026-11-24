@@ -59,6 +59,7 @@ fn run_tray_only() {
     let worker = DeviceWorker::spawn();
     let mut open_window = false;
     let mut device_name = String::new();
+    let mut supports_manual_ambient_ranges = false;
 
     'service: loop {
         while let Some(event) = worker.try_recv() {
@@ -72,14 +73,19 @@ fn run_tray_only() {
                     name,
                     snapshot,
                     icon: _,
-                    supports_manual_ambient_ranges: _,
+                    supports_manual_ambient_ranges: manual_ranges,
                 } => {
                     device_name = name;
-                    tray.update(TrayState::connected(&device_name, &snapshot));
+                    supports_manual_ambient_ranges = manual_ranges;
+                    let has_ambient =
+                        supports_manual_ambient_ranges || !snapshot.mode_options.is_empty();
+                    tray.update(TrayState::connected(&device_name, &snapshot, has_ambient));
                     soundcore_control::notify::buds_connected(&device_name, &snapshot);
                 }
                 DeviceEvent::Snapshot(snapshot) => {
-                    tray.update(TrayState::connected(&device_name, &snapshot));
+                    let has_ambient =
+                        supports_manual_ambient_ranges || !snapshot.mode_options.is_empty();
+                    tray.update(TrayState::connected(&device_name, &snapshot, has_ambient));
                 }
                 DeviceEvent::Error(error) => {
                     tracing::error!(%error, "tray Bluetooth error");

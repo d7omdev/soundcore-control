@@ -142,15 +142,21 @@ impl SoundcoreApp {
                 self.supports_manual_ambient_ranges = supports_manual_ambient_ranges;
                 self.set_current_icon(context, &name, icon.as_deref());
                 self.device_name = name.clone();
-                self.tray
-                    .update(TrayState::connected(&self.device_name, &snapshot));
+                self.tray.update(TrayState::connected(
+                    &self.device_name,
+                    &snapshot,
+                    self.has_ambient(&snapshot),
+                ));
                 soundcore_control::notify::buds_connected(&name, &snapshot);
                 self.snapshot = snapshot;
                 self.message = None;
             }
             DeviceEvent::Snapshot(snapshot) => {
-                self.tray
-                    .update(TrayState::connected(&self.device_name, &snapshot));
+                self.tray.update(TrayState::connected(
+                    &self.device_name,
+                    &snapshot,
+                    self.has_ambient(&snapshot),
+                ));
                 self.snapshot = snapshot;
                 self.connection = ConnectionView::Connected;
                 self.message = None;
@@ -240,7 +246,11 @@ impl SoundcoreApp {
     /// intensity range or at least one discrete listening mode. Devices with neither (e.g.
     /// the P20i, which has no ANC hardware) don't get an Ambient tab at all.
     pub(crate) fn has_ambient_options(&self) -> bool {
-        self.supports_manual_ambient_ranges || !self.snapshot.mode_options.is_empty()
+        self.has_ambient(&self.snapshot)
+    }
+
+    fn has_ambient(&self, snapshot: &DeviceSnapshot) -> bool {
+        self.supports_manual_ambient_ranges || !snapshot.mode_options.is_empty()
     }
 
     /// Whether the connected device reports any daily or button control. Devices with
