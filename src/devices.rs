@@ -22,6 +22,11 @@ pub struct DeviceProfile {
     /// settings manager doesn't register, rather than returning an error. Defaults to
     /// `false` (skip the repair) for any unverified model.
     pub supports_manual_ambient_ranges: bool,
+    /// Experimental/aliased models whose daily and button controls cannot be trusted
+    /// (the state packet layout only partly matches the `openscq30-lib` model they are
+    /// mapped to). Those controls are hidden and their writes are dropped, so only
+    /// battery, ambient and equalizer are exposed. Defaults to `false`.
+    pub read_only_controls: bool,
 }
 
 #[derive(Debug, Deserialize)]
@@ -36,6 +41,8 @@ struct RawDeviceProfile {
     display_name: String,
     icon: Option<String>,
     supports_manual_ambient_ranges: bool,
+    #[serde(default)]
+    read_only_controls: bool,
 }
 
 /// Device icon PNGs, named in `assets/devices.toml`'s `icon` field.
@@ -75,6 +82,7 @@ fn load_device_profiles() -> Vec<DeviceProfile> {
                 display_name: raw.display_name,
                 icon,
                 supports_manual_ambient_ranges: raw.supports_manual_ambient_ranges,
+                read_only_controls: raw.read_only_controls,
             }
         })
         .collect()
@@ -122,9 +130,16 @@ mod tests {
         }
     }
 
+    fn liberty_4_pro() -> &'static DeviceProfile {
+        DEVICE_PROFILES
+            .iter()
+            .find(|profile| profile.display_name == "Liberty 4 Pro")
+            .expect("Liberty 4 Pro is registered")
+    }
+
     #[test]
     fn matches_by_name_case_insensitively() {
-        let profile = &DEVICE_PROFILES[0];
+        let profile = liberty_4_pro();
         let descriptors = vec![descriptor("SOUNDCORE LIBERTY 4 PRO", "AA:BB:CC:DD:EE:FF")];
 
         let found = find_matching_descriptor(&descriptors, profile, None);
@@ -134,7 +149,7 @@ mod tests {
 
     #[test]
     fn ignores_name_when_mac_is_configured() {
-        let profile = &DEVICE_PROFILES[0];
+        let profile = liberty_4_pro();
         let configured_mac = "11:22:33:44:55:66".parse().unwrap();
         let descriptors = vec![
             descriptor("soundcore Liberty 4 Pro", "AA:BB:CC:DD:EE:FF"),
@@ -148,7 +163,7 @@ mod tests {
 
     #[test]
     fn returns_none_when_nothing_matches() {
-        let profile = &DEVICE_PROFILES[0];
+        let profile = liberty_4_pro();
         let descriptors = vec![descriptor("unrelated device", "AA:BB:CC:DD:EE:FF")];
 
         assert_eq!(find_matching_descriptor(&descriptors, profile, None), None);
@@ -167,7 +182,12 @@ mod tests {
 
     #[test]
     fn loads_icons_for_every_registered_profile() {
-        for profile in DEVICE_PROFILES.iter() {
+        // Experimental read-only aliases (e.g. K20i) have no artwork of their own and use
+        // the generic placeholder rather than another product's picture.
+        for profile in DEVICE_PROFILES
+            .iter()
+            .filter(|profile| !profile.read_only_controls)
+        {
             assert!(
                 profile.icon.is_some(),
                 "{} should have an icon key wired up",

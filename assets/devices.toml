@@ -9,10 +9,23 @@
 # trusting it.
 # `icon` (optional) names a PNG file in assets/icons/; omit it to fall back to the
 # generic vector-drawn placeholder.
+# `read_only_controls` (optional, default false) hides daily/button controls and drops their
+# writes. Use it for models aliased onto a similar `openscq30-lib` model whose state packet
+# only partly matches, where those controls would be misparsed.
 # `supports_manual_ambient_ranges` must be `true` only for devices confirmed to expose
 # separate ManualNoiseCanceling/ManualTransparency numeric-range settings. Setting it to
 # true for a device that doesn't have them makes openscq30-lib panic on connect (see
 # device::initialize_ambient_level). Default to `false` for anything unverified.
+
+# Not supported by openscq30-lib; the state packet matches A3949 (P20i) except for the button
+# section (1 byte per button), so daily/button controls are hidden. Must come before any
+# entry that could match by MAC alone (SOUNDCORE_CONTROL_MAC).
+[[device]]
+model = "SoundcoreA3949"
+bluetooth_name = "soundcore K20i"
+display_name = "K20i"
+supports_manual_ambient_ranges = false
+read_only_controls = true
 
 [[device]]
 model = "SoundcoreA3954"

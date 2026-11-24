@@ -24,6 +24,9 @@ pub struct EqualizerState {
     pub min: i16,
     pub max: i16,
     pub fraction_digits: i16,
+    /// The device only accepts preset selection (no custom per-band gains), so the bands
+    /// are shown but cannot be edited.
+    pub read_only: bool,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -320,12 +323,17 @@ fn select_options(setting: openscq30_lib::settings::Select) -> Vec<SelectOption>
 
 fn equalizer_state(setting: Setting) -> Option<EqualizerState> {
     match setting {
-        Setting::Equalizer { setting, value, .. } => Some(EqualizerState {
+        Setting::Equalizer {
+            setting,
+            value,
+            read_only,
+        } => Some(EqualizerState {
             frequencies_hz: setting.band_hz.into_owned(),
             gains: value,
             min: setting.min,
             max: setting.max,
             fraction_digits: setting.fraction_digits,
+            read_only,
         }),
         _ => None,
     }

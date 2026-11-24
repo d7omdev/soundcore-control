@@ -230,3 +230,28 @@ fn missing_settings_produce_safe_defaults() {
 
     assert_eq!(snapshot, Default::default());
 }
+
+#[test]
+fn equalizer_state_carries_the_read_only_flag() {
+    let equalizer = |read_only| {
+        HashMap::from([(
+            SettingId::VolumeAdjustments,
+            Setting::Equalizer {
+                setting: Equalizer {
+                    band_hz: Cow::Borrowed(&[100, 200, 400, 800, 1600, 3200, 6400, 12800]),
+                    fraction_digits: 1,
+                    min: -120,
+                    max: 134,
+                },
+                read_only,
+                value: vec![0; 8],
+            },
+        )])
+    };
+
+    let editable = snapshot_from_settings(|id| equalizer(false).get(&id).cloned());
+    let preset_only = snapshot_from_settings(|id| equalizer(true).get(&id).cloned());
+
+    assert!(!editable.equalizer.unwrap().read_only);
+    assert!(preset_only.equalizer.unwrap().read_only);
+}

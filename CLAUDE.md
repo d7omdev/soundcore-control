@@ -21,6 +21,8 @@ cargo test some_test_name           # run tests matching a name
 
 `.githooks/pre-commit` runs `cargo fmt --check`, `cargo clippy --all-targets --all-features -- -D warnings`, and `cargo test`, the same checks CI runs (`.github/workflows/ci.yml`). Run these before committing; there is no separate lint/typecheck step to remember.
 
+`cargo run --release --example eq_probe -- <MAC> <DeviceModel> <preset>` switches one equalizer preset on real hardware and restores it afterwards (close the GUI first: the earbuds accept a single RFCOMM connection). Models whose equalizer is TWS-gated (e.g. A3949/K20i) only expose it when both earbuds are connected; otherwise the settings read as absent and writes are silently ignored by `openscq30-lib`.
+
 If more than one compatible device is visible, `SOUNDCORE_CONTROL_MAC=AA:BB:CC:DD:EE:FF` selects one (read via `device::configured_mac_address()`, used by both the device worker and the Bluetooth watcher).
 
 Runtime state lives in `${XDG_DATA_HOME:-~/.local/share}/soundcore-control/devices.sqlite3` (OpenSCQ30's device database, not app-specific config). `device::database_path()` transparently migrates an old `liberty-control` data directory on first launch if found.

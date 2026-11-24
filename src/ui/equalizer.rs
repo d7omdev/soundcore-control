@@ -37,6 +37,7 @@ impl SoundcoreApp {
             let connected = self.is_connected();
             let mut changed_gains = None;
             if let Some(equalizer) = &mut self.snapshot.equalizer {
+                let editable = connected && !equalizer.read_only;
                 let mut changed = false;
                 let band_count = equalizer.gains.len().max(1) as f32;
                 let band_width = (ui.available_width() / band_count).max(34.0);
@@ -54,7 +55,7 @@ impl SoundcoreApp {
                                     RichText::new(format!("{db:+.1}")).size(11.0).color(MUTED),
                                 );
                                 let response = ui.add_enabled(
-                                    connected,
+                                    editable,
                                     egui::Slider::new(gain, equalizer.min..=equalizer.max)
                                         .vertical()
                                         .show_value(false),
@@ -71,12 +72,25 @@ impl SoundcoreApp {
                         );
                     }
                 });
+                if equalizer.read_only {
+                    ui.add_space(8.0);
+                    ui.label(
+                        RichText::new("These earbuds only support the presets above.")
+                            .size(12.0)
+                            .color(MUTED),
+                    );
+                }
                 if changed {
                     changed_gains = Some(equalizer.gains.clone());
                 }
             } else {
+                // Some models hide the equalizer until both earbuds are connected.
                 ui.label(
-                    RichText::new("Equalizer data will appear after connection.").color(MUTED),
+                    RichText::new(
+                        "The equalizer is not available yet. Some earbuds need both buds \
+                         connected.",
+                    )
+                    .color(MUTED),
                 );
                 ui.add_space(72.0);
             }

@@ -148,7 +148,7 @@ async fn run_device(
         .await
         .context("could not open the Soundcore RFCOMM service")?;
     initialize_ambient_level(device.as_ref(), events, profile).await;
-    let snapshot = read_snapshot(device.as_ref());
+    let snapshot = read_snapshot(device.as_ref(), profile.read_only_controls);
     events
         .send(DeviceEvent::Connected {
             name: profile.display_name.to_owned(),
@@ -158,7 +158,14 @@ async fn run_device(
         })
         .ok();
 
-    event_loop(device, descriptor.mac_address, &mut commands, events).await
+    event_loop(
+        device,
+        descriptor.mac_address,
+        profile.read_only_controls,
+        &mut commands,
+        events,
+    )
+    .await
 }
 
 /// Tries each known device profile in turn, querying BlueZ for devices of that model until
@@ -195,6 +202,7 @@ async fn find_target_device(
 async fn event_loop(
     device: Arc<dyn OpenSCQ30Device + Send + Sync>,
     mac_address: MacAddr6,
+    read_only_controls: bool,
     commands: &mut tokio_mpsc::UnboundedReceiver<DeviceCommand>,
     events: &mpsc::Sender<DeviceEvent>,
 ) -> Result<()> {
@@ -217,6 +225,10 @@ async fn event_loop(
                     }
                     continue;
                 }
+                if read_only_controls && is_control_write(&command) {
+                    tracing::warn!(?command, "dropping control write for a read-only-controls profile");
+                    continue;
+                }
                 for change in setting_changes(command) {
                     if let Err(error) = device.set_setting_values(vec![change]).await {
                         events.send(DeviceEvent::Error(format!("Could not update the earbuds: {error}"))).ok();
@@ -229,7 +241,7 @@ async fn event_loop(
                     events.send(DeviceEvent::Disconnected).ok();
                     return Ok(());
                 }
-                events.send(DeviceEvent::Snapshot(read_snapshot(device.as_ref()))).ok();
+                events.send(DeviceEvent::Snapshot(read_snapshot(device.as_ref(), read_only_controls))).ok();
             }
             changed = connection.changed() => {
                 if changed.is_err() || matches!(*connection.borrow(), openscq30_lib::connection::ConnectionStatus::Disconnected) {
@@ -308,7 +320,15 @@ async fn disconnect_bluetooth(mac_address: MacAddr6) -> Result<()> {
         .context("BlueZ could not disconnect the earbuds")
 }
 
-fn read_snapshot(device: &dyn OpenSCQ30Device) -> DeviceSnapshot {
+/// Daily and button settings are the only `DeviceCommand`s that write arbitrary setting ids.
+fn is_control_write(command: &DeviceCommand) -> bool {
+    matches!(
+        command,
+        DeviceCommand::SetToggle(..) | DeviceCommand::SetSelect { .. }
+    )
+}
+
+fn read_snapshot(device: &dyn OpenSCQ30Device, read_only_controls: bool) -> DeviceSnapshot {
     for setting_id in [
         SettingId::BatteryLevelLeft,
         SettingId::BatteryLevelRight,
@@ -321,7 +341,12 @@ fn read_snapshot(device: &dyn OpenSCQ30Device) -> DeviceSnapshot {
     ] {
         tracing::debug!(?setting_id, setting = ?device.setting(&setting_id), "device setting");
     }
-    snapshot_from_settings(|setting_id: SettingId| device.setting(&setting_id))
+    let mut snapshot = snapshot_from_settings(|setting_id: SettingId| device.setting(&setting_id));
+    if read_only_controls {
+        snapshot.daily_controls.clear();
+        snapshot.button_controls.clear();
+    }
+    snapshot
 }
 
 fn database_path() -> Result<PathBuf> {
